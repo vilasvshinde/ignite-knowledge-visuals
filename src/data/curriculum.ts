@@ -110,70 +110,19 @@ const mathTopics: Record<string, Topic[]> = {
     { id: "straight-line", name: "Straight Line", animationCount: 3, description: "Various forms of line equations, angle between lines, and locus" },
     { id: "circle", name: "Circle", animationCount: 3, description: "Equation of circle, tangents, and conditions of tangency" },
     { id: "conic-sections", name: "Conic Sections", animationCount: 4, description: "Parabola, ellipse, and hyperbola — equations and properties" },
-    { id: "measures-dispersion", name: "Measures of Dispersion", animationCount: 2, description: "Range, variance, standard deviation, and coefficient of variation"
+    { id: "measures-dispersion", name: "Measures of Dispersion", animationCount: 2, description: "Range, variance, standard deviation, and coefficient of variation" },
+    { id: "probability", name: "Probability", animationCount: 3, description: "Classical probability, theorems, and Bayes' theorem"
     },
-    {
-    id: "probability",
-    name: "Probability",
-    animationCount: 3,
-    description: "Classical probability, theorems, and Bayes' theorem"
-    },
-
     // Part II
-    {
-    id: "complex-numbers",
-    name: "Complex Numbers",
-    animationCount: 3,
-    description: "Algebra of complex numbers, Argand diagram, and De Moivre's theorem"
-    },
-    {
-    id: "sequences-series",
-    name: "Sequences and Series",
-    animationCount: 3,
-    description: "AP, GP, HP, and special sums of series"
-    },
-    {
-    id: "permutations-combinations",
-    name: "Permutations and Combinations",
-    animationCount: 3,
-    description: "Counting principles, permutations, and combinations"
-    },
-    {
-    id: "induction-binomial",
-    name: "Methods of Induction and Binomial Theorem",
-    animationCount: 3,
-    description: "Mathematical induction and binomial expansion"
-    },
-    {
-    id: "sets-relations",
-    name: "Sets and Relations",
-    animationCount: 2,
-    description: "Set operations, types of relations, and equivalence relations"
-    },
-    {
-    id: "functions",
-    name: "Functions",
-    animationCount: 3,
-    description: "Types of functions, composition, inverse, and algebra of functions"
-    },
-    {
-    id: "limits",
-    name: "Limits",
-    animationCount: 3,
-    description: "Concept of limits, standard limits, and indeterminate forms"
-    },
-    {
-    id: "continuity",
-    name: "Continuity",
-    animationCount: 2,
-    description: "Continuity of a function at a point and over an interval"
-    },
-    {
-    id: "differentiation",
-    name: "Differentiation",
-    animationCount: 4,
-    description: "Derivatives, rules of differentiation, and applications"
-    },
+    { id: "complex-numbers", name: "Complex Numbers", animationCount: 3, description: "Algebra of complex numbers, Argand diagram, and De Moivre's theorem" },
+    { id: "sequences-series", name: "Sequences and Series", animationCount: 3, description: "AP, GP, HP, and special sums of series" },
+    { id: "permutations-combinations", name: "Permutations and Combinations", animationCount: 3, description: "Counting principles, permutations, and combinations" },
+    { id: "induction-binomial", name: "Methods of Induction and Binomial Theorem", animationCount: 3, description: "Mathematical induction and binomial expansion" },
+    { id: "sets-relations", name: "Sets and Relations", animationCount: 2, description: "Set operations, types of relations, and equivalence relations" },
+    { id: "functions", name: "Functions", animationCount: 3, description: "Types of functions, composition, inverse, and algebra of functions" },
+    { id: "limits", name: "Limits", animationCount: 3, description: "Concept of limits, standard limits, and indeterminate forms" },
+    { id: "continuity", name: "Continuity", animationCount: 2, description: "Continuity of a function at a point and over an interval" },
+    { id: "differentiation", name: "Differentiation", animationCount: 4, description: "Derivatives, rules of differentiation, and applications" },
     ],
   "12": [
     { id: "matrices", name: "Matrices and Determinants", animationCount: 4, description: "Matrix operations and applications" },
