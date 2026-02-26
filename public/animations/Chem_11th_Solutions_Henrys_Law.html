@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Henry's Law Lab - Interactive Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f4;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="range"] {
+            accent-color: #059669;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+        }
+
+        #simulation-canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #0c0a09;
+        }
+    </style>
+</head>
+<body class="text-[#1c1917]">
+    <!-- Header -->
+    <header class="border-b border-stone-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                    <i data-lucide="beaker"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-tight">Henry's Law Lab</h1>
+                    <p class="text-xs text-stone-500 font-medium uppercase tracking-wider">Standalone Simulation</p>
+                </div>
+            </div>
+            <button onclick="location.reload()" class="p-2 hover:bg-stone-100 rounded-full transition-colors">
+                <i data-lucide="refresh-cw" size="18"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Left Column: Controls -->
+        <div class="lg:col-span-4 space-y-6">
+            <!-- Gas Selector -->
+            <section class="bg-white rounded-3xl p-6 shadow-sm border border-stone-200">
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4 flex items-center gap-2">
+                    <i data-lucide="wind" size="14"></i> Select Gas
+                </h2>
+                <div id="gas-selector" class="grid grid-cols-2 gap-3">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </section>
+
+            <!-- Parameters -->
+            <section class="bg-white rounded-3xl p-6 shadow-sm border border-stone-200 space-y-8">
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-stone-400 flex items-center gap-2">
+                    <i data-lucide="activity" size="14"></i> Parameters
+                </h2>
+                
+                <div class="space-y-4">
+                    <div class="flex justify-between items-end">
+                        <label class="text-sm font-medium text-stone-700">Partial Pressure (P)</label>
+                        <span class="text-2xl font-mono font-bold text-emerald-600"><span id="pressure-val">1.0</span> <span class="text-xs text-stone-400 font-sans">atm</span></span>
+                    </div>
+                    <input type="range" id="pressure-slider" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full h-2 bg-stone-100 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex justify-between items-end">
+                        <label class="text-sm font-medium text-stone-700 flex items-center gap-2">
+                            <i data-lucide="thermometer" size="16" class="text-orange-500"></i> Temperature (T)
+                        </label>
+                        <span class="text-2xl font-mono font-bold text-orange-600"><span id="temp-val">25</span>°<span class="text-xs text-stone-400 font-sans">C</span></span>
+                    </div>
+                    <input type="range" id="temp-slider" min="0" max="100" step="1" value="25" class="w-full h-2 bg-stone-100 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <!-- Formula Card -->
+            <section class="bg-emerald-900 rounded-3xl p-6 text-white shadow-xl shadow-emerald-900/20 relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-4">The Formula</h2>
+                    <div class="text-3xl font-serif italic mb-2">C = k<sub>H</sub> · P</div>
+                    <p class="text-emerald-100/70 text-sm leading-relaxed">
+                        The concentration of a dissolved gas is directly proportional to its partial pressure above the liquid.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Middle Column: Simulation -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="bg-stone-900 rounded-[40px] p-8 shadow-2xl border-8 border-stone-800 relative aspect-[4/5] overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-4 text-stone-500 font-mono text-[10px] uppercase tracking-widest">
+                    <span>Pressure Chamber</span>
+                    <div class="flex gap-2">
+                        <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                        <span>Active</span>
+                    </div>
+                </div>
+
+                <div class="flex-1 relative bg-stone-950 rounded-2xl border border-stone-800 overflow-hidden">
+                    <canvas id="simulation-canvas"></canvas>
+                    
+                    <!-- Piston Overlay (Visual only) -->
+                    <div id="piston-head" class="absolute left-0 right-0 bg-stone-700 h-8 z-30 border-b-4 border-stone-600 flex items-center justify-center transition-all duration-300" style="top: 10%;">
+                        <div class="w-12 h-1 bg-stone-800 rounded-full opacity-50"></div>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-2 gap-4">
+                    <div class="bg-stone-800/50 rounded-2xl p-4 border border-stone-700/50">
+                        <div class="text-[10px] text-stone-500 uppercase font-bold mb-1">Concentration (C)</div>
+                        <div class="text-xl font-mono text-emerald-400">
+                            <span id="conc-val">0.00</span>
+                            <span class="text-[10px] ml-1 text-stone-500">mmol/L</span>
+                        </div>
+                    </div>
+                    <div class="bg-stone-800/50 rounded-2xl p-4 border border-stone-700/50">
+                        <div class="text-[10px] text-stone-500 uppercase font-bold mb-1">Henry's Constant (kH)</div>
+                        <div class="text-xl font-mono text-stone-300">
+                            <span id="kh-val">0.0000</span>
+                            <span class="text-[10px] ml-1 text-stone-500">M/atm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Graph -->
+        <div class="lg:col-span-3 space-y-6">
+            <section class="bg-white rounded-3xl p-6 shadow-sm border border-stone-200">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-sm font-semibold uppercase tracking-widest text-stone-400 flex items-center gap-2">
+                        <i data-lucide="activity" size="14"></i> Solubility Curve
+                    </h2>
+                    <button onclick="resetGraph()" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase">Clear</button>
+                </div>
+                <div class="h-48 w-full">
+                    <canvas id="solubility-chart"></canvas>
+                </div>
+                <p class="text-[10px] text-stone-400 mt-4 leading-tight">
+                    Notice the linear relationship between pressure and solubility.
+                </p>
+            </section>
+
+            <!-- Real World -->
+            <section class="space-y-4">
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-stone-400 px-2">Real World</h2>
+                <div class="bg-white rounded-2xl p-4 border border-stone-200">
+                    <h3 class="text-sm font-bold text-stone-800">Soda Bottles</h3>
+                    <p class="text-xs text-stone-500 mt-1">Opening the cap drops pressure, causing CO₂ to escape.</p>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-stone-200">
+                    <h3 class="text-sm font-bold text-stone-800">Scuba Diving</h3>
+                    <p class="text-xs text-stone-500 mt-1">High pressure at depth dissolves more Nitrogen in blood.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // --- Constants ---
+        const GAS_TYPES = [
+            { id: 'co2', name: 'Carbon Dioxide', formula: 'CO₂', kH: 0.034, color: '#94a3b8' },
+            { id: 'o2', name: 'Oxygen', formula: 'O₂', kH: 0.0013, color: '#38bdf8' },
+            { id: 'n2', name: 'Nitrogen', formula: 'N₂', kH: 0.00061, color: '#818cf8' },
+            { id: 'he', name: 'Helium', formula: 'He', kH: 0.00037, color: '#fbbf24' },
+        ];
+
+        // --- State ---
+        let pressure = 1.0;
+        let temperature = 25;
+        let selectedGas = GAS_TYPES[0];
+        let particles = [];
+        let chart;
+
+        // --- Initialization ---
+        function init() {
+            lucide.createIcons();
+            initGasSelector();
+            initChart();
+            initParticles();
+            animate();
+
+            // Event Listeners
+            document.getElementById('pressure-slider').addEventListener('input', (e) => {
+                pressure = parseFloat(e.target.value);
+                document.getElementById('pressure-val').innerText = pressure.toFixed(1);
+                updatePiston();
+                updateCalculations();
+            });
+
+            document.getElementById('temp-slider').addEventListener('input', (e) => {
+                temperature = parseInt(e.target.value);
+                document.getElementById('temp-val').innerText = temperature;
+                updateCalculations();
+            });
+
+            updateCalculations();
+            updatePiston();
+        }
+
+        function initGasSelector() {
+            const container = document.getElementById('gas-selector');
+            GAS_TYPES.forEach(gas => {
+                const btn = document.createElement('button');
+                btn.id = `gas-btn-${gas.id}`;
+                btn.className = `px-4 py-3 rounded-2xl text-sm font-medium transition-all border-2 text-left ${selectedGas.id === gas.id ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-600 border-stone-100 hover:border-stone-200'}`;
+                btn.innerHTML = `<div class="flex justify-between items-start"><span>${gas.name}</span><span class="text-[10px] opacity-60">${gas.formula}</span></div>`;
+                btn.onclick = () => selectGas(gas);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectGas(gas) {
+            selectedGas = gas;
+            GAS_TYPES.forEach(g => {
+                document.getElementById(`gas-btn-${g.id}`).className = `px-4 py-3 rounded-2xl text-sm font-medium transition-all border-2 text-left ${selectedGas.id === g.id ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-600 border-stone-100 hover:border-stone-200'}`;
+            });
+            updateCalculations();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('solubility-chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Solubility (mmol/L)',
+                        data: [],
+                        borderColor: '#059669',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'P (atm)', font: { size: 10 } } },
+                        y: { title: { display: true, text: 'C (mmol/L)', font: { size: 10 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function resetGraph() {
+            chart.data.datasets[0].data = [];
+            chart.update();
+        }
+
+        function initParticles() {
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: Math.random() * 100,
+                    y: Math.random() * 100,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    phase: i < 75 ? 'gas' : 'dissolved'
+                });
+            }
+        }
+
+        function updateCalculations() {
+            const tempCorrection = Math.exp(2400 * (1 / (temperature + 273.15) - 1 / 298.15));
+            const currentKH = selectedGas.kH * tempCorrection;
+            const concentration = currentKH * pressure;
+            
+            document.getElementById('kh-val').innerText = currentKH.toFixed(4);
+            document.getElementById('conc-val').innerText = (concentration * 1000).toFixed(2);
+
+            // Update chart
+            const newPoint = { x: pressure, y: concentration * 1000 };
+            const existing = chart.data.datasets[0].data;
+            if (!existing.find(p => p.x === newPoint.x)) {
+                existing.push(newPoint);
+                existing.sort((a, b) => a.x - b.x);
+                if (existing.length > 20) existing.shift();
+                chart.update('none');
+            }
+        }
+
+        function updatePiston() {
+            const piston = document.getElementById('piston-head');
+            const topPos = (1 - pressure / 5) * 15;
+            piston.style.top = `${topPos}%`;
+        }
+
+        // --- Animation Loop ---
+        const canvas = document.getElementById('simulation-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function animate() {
+            // Resize canvas
+            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const liquidLineY = canvas.height * 0.4;
+            const pistonY = canvas.height * ((1 - pressure / 5) * 0.15);
+
+            // Draw Liquid
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+            ctx.fillRect(0, liquidLineY, canvas.width, canvas.height - liquidLineY);
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(0, liquidLineY);
+            ctx.lineTo(canvas.width, liquidLineY);
+            ctx.stroke();
+
+            // Update & Draw Particles
+            const tempCorrection = Math.exp(2400 * (1 / (temperature + 273.15) - 1 / 298.15));
+            const currentKH = selectedGas.kH * tempCorrection;
+            const concentration = currentKH * pressure;
+            const targetDissolvedCount = Math.min(Math.floor(concentration * 500), 120);
+            const targetGasCount = Math.floor(pressure * 40);
+
+            let currentDissolved = particles.filter(p => p.phase === 'dissolved').length;
+            let currentGas = particles.filter(p => p.phase === 'gas').length;
+
+            particles.forEach(p => {
+                // Movement
+                const speedMult = (temperature + 25) / 50;
+                p.x += p.vx * speedMult;
+                p.y += p.vy * speedMult;
+
+                // Canvas boundaries (X)
+                if (p.x < 0 || p.x > 100) p.vx *= -1;
+
+                // Phase logic
+                const yPx = (p.y / 100) * canvas.height;
+                const xPx = (p.x / 100) * canvas.width;
+
+                if (p.phase === 'gas') {
+                    if (yPx < pistonY + 32) p.vy *= -1; // Piston head collision
+                    if (yPx > liquidLineY) {
+                        if (currentDissolved < targetDissolvedCount) {
+                            p.phase = 'dissolved';
+                            currentDissolved++;
+                            currentGas--;
+                        } else {
+                            p.vy *= -1;
+                        }
+                    }
+                } else {
+                    if (yPx > 100 * canvas.height / 100) p.vy *= -1;
+                    if (yPx < liquidLineY) {
+                        if (currentGas < targetGasCount) {
+                            p.phase = 'gas';
+                            currentGas++;
+                            currentDissolved--;
+                        } else {
+                            p.vy *= -1;
+                        }
+                    }
+                }
+
+                // Draw
+                ctx.fillStyle = selectedGas.color;
+                ctx.globalAlpha = p.phase === 'gas' ? 1 : 0.6;
+                ctx.beginPath();
+                ctx.arc(xPx, yPx, 3, 0, Math.PI * 2);
+                ctx.fill();
+                if (p.phase === 'gas') {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = selectedGas.color;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

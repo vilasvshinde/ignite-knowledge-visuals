@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boiling Point Elevation Lab - Standalone</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #E4E3E0;
+            color: #141414;
+        }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #d1d1d1;
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: currentColor;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -6px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // Constants
+        const PURE_SOLVENT_BP = 100;
+        const KB = 0.512;
+        const ATM_PRESSURE = 101.3;
+
+        const App = () => {
+            // Destructure Recharts inside the component to ensure it's loaded
+            const { 
+                LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Label 
+            } = window.Recharts;
+
+            const [temperature, setTemperature] = useState(25);
+            const [concentration, setConcentration] = useState(0);
+            const [isHeating, setIsHeating] = useState(false);
+            const [showTheory, setShowTheory] = useState(false);
+            const [vanTHoff, setVanTHoff] = useState(1);
+            const [isLoaded, setIsLoaded] = useState(false);
+            
+            const canvasRef = useRef(null);
+            const particlesRef = useRef([]);
+            const requestRef = useRef(null);
+
+            // Ensure libraries are ready
+            useEffect(() => {
+                const timer = setTimeout(() => setIsLoaded(true), 100);
+                return () => clearTimeout(timer);
+            }, []);
+
+            const deltaTb = vanTHoff * KB * concentration;
+            const boilingPoint = PURE_SOLVENT_BP + deltaTb;
+            const isBoiling = temperature >= boilingPoint;
+
+            const getVaporPressure = (temp, conc) => {
+                const xSolvent = 1 / (1 + conc * 0.018);
+                const pureP = 101.3 * Math.exp(0.04 * (temp - PURE_SOLVENT_BP));
+                return pureP * xSolvent;
+            };
+
+            const currentVP = getVaporPressure(temperature, concentration);
+
+            const graphData = useMemo(() => {
+                const data = [];
+                for (let t = 20; t <= 120; t += 2) {
+                    data.push({
+                        temp: t,
+                        pure: getVaporPressure(t, 0),
+                        solution: getVaporPressure(t, concentration),
+                    });
+                }
+                return data;
+            }, [concentration, vanTHoff]);
+
+            useEffect(() => {
+                if (!isLoaded) return;
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                const liquidLevel = height * 0.7;
+
+                if (particlesRef.current.length === 0) {
+                    for (let i = 0; i < 100; i++) {
+                        particlesRef.current.push({
+                            x: Math.random() * width,
+                            y: liquidLevel + Math.random() * (height - liquidLevel),
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: (Math.random() - 0.5) * 2,
+                            type: 'solvent'
+                        });
+                    }
+                }
+
+                const currentSolutes = particlesRef.current.filter(p => p.type === 'solute').length;
+                const targetSolutes = Math.floor(concentration * 10);
+                
+                if (currentSolutes < targetSolutes) {
+                    for (let i = 0; i < targetSolutes - currentSolutes; i++) {
+                        particlesRef.current.push({
+                            x: Math.random() * width,
+                            y: liquidLevel + Math.random() * (height - liquidLevel),
+                            vx: (Math.random() - 0.5) * 1,
+                            vy: (Math.random() - 0.5) * 1,
+                            type: 'solute'
+                        });
+                    }
+                } else if (currentSolutes > targetSolutes) {
+                    let removed = 0;
+                    particlesRef.current = particlesRef.current.filter(p => {
+                        if (p.type === 'solute' && removed < (currentSolutes - targetSolutes)) {
+                            removed++;
+                            return false;
+                        }
+                        return true;
+                    });
+                }
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+                    ctx.fillRect(0, liquidLevel, width, height - liquidLevel);
+                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+                    ctx.beginPath();
+                    ctx.moveTo(0, liquidLevel);
+                    ctx.lineTo(width, liquidLevel);
+                    ctx.stroke();
+
+                    const speedMult = 0.5 + (temperature / 100) * 2;
+
+                    particlesRef.current.forEach(p => {
+                        p.x += p.vx * speedMult;
+                        p.y += p.vy * speedMult;
+                        if (p.x < 0 || p.x > width) p.vx *= -1;
+                        if (p.y > height) p.vy *= -1;
+                        if (p.y < liquidLevel) {
+                            if (p.type === 'solvent') {
+                                const escapeProb = (temperature - 50) / 200;
+                                if (Math.random() < escapeProb && temperature >= boilingPoint) {
+                                    p.y = height;
+                                    p.x = Math.random() * width;
+                                } else {
+                                    p.vy *= -1;
+                                    p.y = liquidLevel;
+                                }
+                            } else {
+                                p.vy *= -1;
+                                p.y = liquidLevel;
+                            }
+                        }
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.type === 'solvent' ? 3 : 5, 0, Math.PI * 2);
+                        ctx.fillStyle = p.type === 'solvent' ? '#3b82f6' : '#f97316';
+                        ctx.fill();
+                    });
+
+                    if (temperature >= boilingPoint) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                        for (let i = 0; i < 5; i++) {
+                            ctx.beginPath();
+                            ctx.arc(Math.random() * width, liquidLevel - Math.random() * 50, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    requestRef.current = requestAnimationFrame(animate);
+                };
+
+                requestRef.current = requestAnimationFrame(animate);
+                return () => cancelAnimationFrame(requestRef.current);
+            }, [temperature, concentration, boilingPoint, isLoaded]);
+
+            useEffect(() => {
+                let interval;
+                if (isHeating) {
+                    interval = setInterval(() => {
+                        setTemperature(prev => Math.min(120, prev + 0.5));
+                    }, 50);
+                }
+                return () => clearInterval(interval);
+            }, [isHeating]);
+
+            useEffect(() => {
+                if (isBoiling && temperature < boilingPoint + 1) {
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#3b82f6', '#f97316', '#ffffff']
+                    });
+                }
+            }, [isBoiling]);
+
+            // Initialize Lucide icons
+            useEffect(() => {
+                if (window.lucide && isLoaded) {
+                    window.lucide.createIcons();
+                }
+            }, [showTheory, isLoaded]);
+
+            if (!isLoaded) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0]">
+                        <div className="text-center">
+                            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="font-mono text-sm uppercase tracking-widest opacity-50">Initializing Lab...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#141414] pb-6">
+                        <div>
+                            <h1 className="text-5xl md:text-7xl font-serif italic tracking-tighter leading-none mb-2">
+                                Boiling Point Elevation
+                            </h1>
+                            <p className="text-sm uppercase tracking-widest opacity-60 font-mono">
+                                Chemistry Lab Simulation • Standalone Version
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setShowTheory(!showTheory)}
+                                className="flex items-center gap-2 px-4 py-2 border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors uppercase text-xs font-bold tracking-widest"
+                            >
+                                <i data-lucide="info" className="w-4 h-4"></i>
+                                {showTheory ? 'Hide Theory' : 'Show Theory'}
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setTemperature(25);
+                                    setConcentration(0);
+                                    setIsHeating(false);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors uppercase text-xs font-bold tracking-widest"
+                            >
+                                <i data-lucide="refresh-cw" className="w-4 h-4"></i>
+                                Reset Lab
+                            </button>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-7 space-y-8">
+                            {/* Controls moved to top as per previous request */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#141414]/5">
+                                    <div className="flex items-center justify-between mb-6 text-orange-600">
+                                        <div className="flex items-center gap-3">
+                                            <i data-lucide="thermometer" className="w-5 h-5"></i>
+                                            <h3 className="font-bold uppercase text-xs tracking-widest">Thermal Control</h3>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsHeating(!isHeating)}
+                                            className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                                                isHeating ? 'bg-orange-500 text-white shadow-lg' : 'bg-[#E4E3E0] text-[#141414]'
+                                            }`}
+                                        >
+                                            {isHeating ? 'Stop Heating' : 'Start Heating'}
+                                        </button>
+                                    </div>
+                                    <input 
+                                        type="range" min="20" max="120" step="0.1"
+                                        value={temperature}
+                                        onChange={(e) => { setTemperature(parseFloat(e.target.value)); setIsHeating(false); }}
+                                        className="w-full text-orange-500 mb-4"
+                                    />
+                                    <div className="flex justify-between text-[10px] font-mono opacity-40 uppercase">
+                                        <span>20°C</span><span>Room Temp</span><span>120°C</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#141414]/5">
+                                    <div className="flex items-center justify-between mb-6 text-blue-600">
+                                        <div className="flex items-center gap-3">
+                                            <i data-lucide="droplets" className="w-5 h-5"></i>
+                                            <h3 className="font-bold uppercase text-xs tracking-widest">Solute Concentration</h3>
+                                        </div>
+                                        <span className="text-xs font-mono font-bold bg-blue-50 px-2 py-1 rounded">
+                                            {concentration.toFixed(2)} m
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <input 
+                                            type="range" min="0" max="5" step="0.1"
+                                            value={concentration}
+                                            onChange={(e) => setConcentration(parseFloat(e.target.value))}
+                                            className="flex-1 text-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[#141414]/5">
+                                        <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Van't Hoff (i)</span>
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3].map(val => (
+                                                <button
+                                                    key={val}
+                                                    onClick={() => setVanTHoff(val)}
+                                                    className={`w-8 h-8 rounded-lg text-xs font-mono transition-all border ${
+                                                        vanTHoff === val ? 'bg-blue-600 text-white' : 'bg-transparent border-[#141414]/10'
+                                                    }`}
+                                                >
+                                                    {val}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="relative bg-[#151619] rounded-xl overflow-hidden shadow-2xl border border-[#141414]/20 h-[500px]">
+                                <canvas ref={canvasRef} width={800} height={500} className="w-full h-full object-cover" />
+                                <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+                                    <div className="bg-black/60 backdrop-blur-md p-3 border border-white/10 rounded-lg">
+                                        <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Current Temperature</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`text-3xl font-mono font-bold ${isBoiling ? 'text-orange-500 animate-pulse' : 'text-blue-400'}`}>
+                                                {temperature.toFixed(1)}°C
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/60 backdrop-blur-md p-3 border border-white/10 rounded-lg">
+                                        <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Vapor Pressure</p>
+                                        <span className="text-2xl font-mono font-bold text-white">{currentVP.toFixed(1)} kPa</span>
+                                    </div>
+                                </div>
+                                {isBoiling && (
+                                    <div className="absolute top-4 right-4 bg-orange-500 text-black px-4 py-2 rounded-full font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg">
+                                        <i data-lucide="flame" className="w-4 h-4"></i>
+                                        Phase Transition Active
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-5 space-y-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#141414]/5 h-[400px]">
+                                <h3 className="font-bold uppercase text-xs tracking-widest mb-6 flex items-center gap-2">
+                                    <i data-lucide="arrow-up-right" className="w-4 h-4 text-blue-600"></i>
+                                    Vapor Pressure Curve
+                                </h3>
+                                <div className="h-[280px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={graphData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                            <XAxis dataKey="temp" type="number" domain={[20, 120]} fontSize={10} />
+                                            <YAxis fontSize={10} />
+                                            <Tooltip />
+                                            <Line type="monotone" dataKey="pure" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="solution" stroke="#f97316" strokeWidth={2} dot={false} />
+                                            <ReferenceLine y={ATM_PRESSURE} stroke="#141414" strokeDasharray="3 3" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            <div className="bg-[#141414] text-[#E4E3E0] p-8 rounded-2xl shadow-xl relative overflow-hidden">
+                                <h3 className="font-serif italic text-2xl mb-6">The Mathematics</h3>
+                                <div className="space-y-6">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-widest opacity-50">Elevation Formula</p>
+                                        <div className="text-3xl font-mono">ΔT<sub>b</sub> = i · K<sub>b</sub> · m</div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                                            <p className="text-[10px] uppercase tracking-widest opacity-50 mb-1">ΔT<sub>b</sub></p>
+                                            <p className="text-xl font-mono">{deltaTb.toFixed(3)} K</p>
+                                        </div>
+                                        <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                                            <p className="text-[10px] uppercase tracking-widest opacity-50 mb-1">New B.P.</p>
+                                            <p className="text-xl font-mono text-orange-400">{boilingPoint.toFixed(2)} °C</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {showTheory && (
+                                <div className="bg-white p-8 rounded-2xl border border-blue-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                                    <h3 className="font-serif italic text-2xl mb-4 text-blue-900">Why does this happen?</h3>
+                                    <div className="space-y-4 text-sm text-blue-800/80 leading-relaxed">
+                                        <p><strong>1. Vapor Pressure Lowering:</strong> Solute particles occupy surface area, reducing solvent escape rate.</p>
+                                        <p><strong>2. The Boiling Condition:</strong> Liquid boils when vapor pressure = atmospheric pressure.</p>
+                                        <p><strong>3. The Elevation:</strong> Higher temperature is needed to reach atmospheric pressure due to the lowering effect.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

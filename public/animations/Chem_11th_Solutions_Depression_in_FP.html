@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryoLab: Freezing Point Depression Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- Prop-Types -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+    <!-- Recharts -->
+    <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.js"></script>
+    <!-- Babel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; height: 24px; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #e2e8f0; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { height: 20px; width: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; -webkit-appearance: none; margin-top: -7px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+        .solute-range::-webkit-slider-thumb { background: #ef4444; }
+        #root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; height: 100vh; align-items: center; justify-content: center; flex-direction: column; font-family: sans-serif;">
+            <div style="width: 40px; height: 40px; border: 4px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 16px; color: #64748b;">Loading Simulation...</p>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+        
+        // Defensive Recharts access
+        const RechartsObj = window.Recharts || {};
+        const { 
+            AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
+            ResponsiveContainer, ReferenceLine 
+        } = RechartsObj;
+
+        if (!AreaChart) {
+            console.error("Recharts failed to load. Check your internet connection or script order.");
+        }
+
+        const Icons = {
+            Flask: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v7.5"/><path d="M14 2v7.5"/><path d="M8.5 2h7"/><path d="M14 11.5c1.5 1.5 3 5 3 7.5 0 1.5-1 3-3 3H10c-2 0-3-1.5-3-3 0-2.5 1.5-6 3-7.5"/><path d="M9 11h6"/></svg>
+            ),
+            Thermometer: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
+            ),
+            Droplets: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16.3c2.2 0 4-1.8 4-4 0-3.3-4-6-4-6s-4 2.7-4 6c0 2.2 1.8 4 4 4Z"/><path d="M17 15.8c1.7 0 3-1.3 3-3 0-2.5-3-4.5-3-4.5s-3 2-3 4.5c0 1.7 1.3 3 3 3Z"/></svg>
+            ),
+            Info: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            ),
+            Beaker: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></svg>
+            )
+        };
+
+        const PURE_FREEZING_POINT = 0;
+        const KF = 1.86;
+        const MAX_MOLALITY = 5;
+
+        const MoleculeSim = ({ molality, temperature }) => {
+            const canvasRef = useRef(null);
+            const particles = useRef([]);
+            const animationFrame = useRef(0);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const width = canvas.width;
+                const height = canvas.height;
+
+                const solventCount = 100;
+                const newParticles = [];
+                for (let i = 0; i < solventCount; i++) {
+                    newParticles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        radius: 4,
+                        type: 'solvent',
+                        color: '#3b82f6'
+                    });
+                }
+
+                const soluteCount = Math.floor(molality * 10);
+                for (let i = 0; i < soluteCount; i++) {
+                    newParticles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        vx: (Math.random() - 0.5) * 1,
+                        vy: (Math.random() - 0.5) * 1,
+                        radius: 6,
+                        type: 'solute',
+                        color: '#ef4444'
+                    });
+                }
+                particles.current = newParticles;
+            }, [molality]);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const speedFactor = Math.max(0.1, (temperature + 20) / 40);
+                    const freezingPoint = -molality * KF;
+                    const isFrozen = temperature <= freezingPoint;
+
+                    particles.current.forEach((p) => {
+                        if (!isFrozen) {
+                            p.x += p.vx * speedFactor;
+                            p.y += p.vy * speedFactor;
+                            if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                            if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        } else {
+                            p.x += (Math.random() - 0.5) * 0.5 * speedFactor;
+                            p.y += (Math.random() - 0.5) * 0.5 * speedFactor;
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.fill();
+                    });
+                    animationFrame.current = requestAnimationFrame(animate);
+                };
+
+                animate();
+                return () => cancelAnimationFrame(animationFrame.current);
+            }, [temperature, molality]);
+
+            return (
+                <div className="relative w-full h-64 bg-slate-900 rounded-xl overflow-hidden border border-slate-700 shadow-inner">
+                    <canvas ref={canvasRef} width={600} height={256} className="w-full h-full" />
+                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+                        <div className="flex items-center gap-2 bg-slate-800/80 px-2 py-1 rounded text-[10px] text-slate-300 border border-slate-700">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div> Solvent (Water)
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-800/80 px-2 py-1 rounded text-[10px] text-slate-300 border border-slate-700">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div> Solute (Non-volatile)
+                        </div>
+                    </div>
+                    {temperature <= -molality * KF && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20 pointer-events-none">
+                            <span className="text-blue-400 font-mono text-sm font-bold tracking-widest uppercase">Solid Phase Formed</span>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const PhaseDiagram = ({ molality, currentTemp }) => {
+            const data = useMemo(() => {
+                const points = [];
+                const deltaTf = molality * KF;
+                const solutionFreezingPoint = PURE_FREEZING_POINT - deltaTf;
+
+                for (let t = -15; t <= 10; t += 0.5) {
+                    const pPure = t < PURE_FREEZING_POINT ? Math.exp(0.1 * t) * 0.8 : Math.exp(0.15 * t);
+                    const pSol = t < solutionFreezingPoint ? Math.exp(0.1 * t) * 0.8 : Math.exp(0.15 * t) * (1 - (molality * 0.05));
+                    points.push({ temp: t, pure: pPure, solution: pSol });
+                }
+                return points;
+            }, [molality]);
+
+            const deltaTf = molality * KF;
+            const solutionFreezingPoint = PURE_FREEZING_POINT - deltaTf;
+
+            if (!AreaChart) return <div className="p-4 text-red-500">Chart library failed to load.</div>;
+
+            return (
+                <div className="w-full h-80 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="mb-4 flex justify-between items-center">
+                        <h3 className="text-sm font-semibold text-slate-700">Vapor Pressure Phase Diagram</h3>
+                        <div className="text-[10px] font-mono text-slate-500">ΔTf = {deltaTf.toFixed(2)}°C</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="temp" fontSize={10} ticks={[-15, -10, -5, 0, 5, 10]} />
+                            <YAxis fontSize={10} domain={[0, 5]} />
+                            <Tooltip 
+                                contentStyle={{ fontSize: '10px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                formatter={(val) => val.toFixed(2)}
+                            />
+                            <Area type="monotone" dataKey="pure" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.05} strokeWidth={2} name="Pure Solvent" />
+                            <Area type="monotone" dataKey="solution" stroke="#ef4444" fill="#ef4444" fillOpacity={0.05} strokeWidth={2} name="Solution" />
+                            <ReferenceLine x={0} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: 'Tf°', position: 'top', fontSize: 10, fill: '#3b82f6' }} />
+                            <ReferenceLine x={solutionFreezingPoint} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Tf', position: 'top', fontSize: 10, fill: '#ef4444' }} />
+                            <ReferenceLine x={currentTemp} stroke="#64748b" strokeWidth={1} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            );
+        };
+
+        function App() {
+            const [molality, setMolality] = useState(1);
+            const [temperature, setTemperature] = useState(5);
+            const [showTheory, setShowTheory] = useState(false);
+
+            const deltaTf = molality * KF;
+            const solutionFreezingPoint = PURE_FREEZING_POINT - deltaTf;
+            const isFrozen = temperature <= solutionFreezingPoint;
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 bg-slate-50">
+                    <div className="max-w-6xl mx-auto space-y-8">
+                        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
+                            <div>
+                                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                                    <Icons.Flask />
+                                    <span className="text-xs font-bold uppercase tracking-widest">Chemistry Lab • Grade 12</span>
+                                </div>
+                                <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+                                    Depression in <span className="text-blue-600">Freezing Point</span>
+                                </h1>
+                                <p className="text-slate-500 mt-2 max-w-xl">
+                                    Explore how adding a non-volatile solute lowers the freezing point of a solvent.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setShowTheory(!showTheory)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+                            >
+                                <Icons.Info />
+                                {showTheory ? "Hide Theory" : "View Theory"}
+                            </button>
+                        </header>
+
+                        <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            <div className="lg:col-span-7 space-y-6">
+                                <section className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                                            <Icons.Droplets /> Microscopic Simulation
+                                        </h2>
+                                        <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${isFrozen ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                            State: {isFrozen ? "Solid (Frozen)" : "Liquid"}
+                                        </div>
+                                    </div>
+                                    <MoleculeSim molality={molality} temperature={temperature} />
+                                </section>
+
+                                <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                                    <Icons.Beaker /> Solute Concentration
+                                                </label>
+                                                <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-600">{molality.toFixed(1)} mol/kg</span>
+                                            </div>
+                                            <input type="range" min="0" max={MAX_MOLALITY} step="0.1" value={molality} onChange={(e) => setMolality(parseFloat(e.target.value))} className="solute-range" />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                                    <Icons.Thermometer /> Temperature
+                                                </label>
+                                                <span className={`text-xs font-mono px-2 py-1 rounded ${temperature <= 0 ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>{temperature.toFixed(1)} °C</span>
+                                            </div>
+                                            <input type="range" min="-15" max="10" step="0.1" value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div className="lg:col-span-5 space-y-6">
+                                <PhaseDiagram molality={molality} currentTemp={temperature} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Freezing Point</div>
+                                        <div className="text-2xl font-bold text-slate-900">{solutionFreezingPoint.toFixed(2)}<span className="text-sm font-normal text-slate-400">°C</span></div>
+                                        <div className="mt-2 text-[10px] text-red-500 font-medium">↓ {deltaTf.toFixed(2)}°C Depression</div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Vapor Pressure</div>
+                                        <div className="text-2xl font-bold text-slate-900">{(Math.exp(0.15 * Math.max(temperature, -15)) * (1 - molality * 0.05)).toFixed(2)}<span className="text-sm font-normal text-slate-400"> atm</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </main>
+
+                        {showTheory && (
+                            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 md:p-12 grid grid-cols-1 md:grid-cols-2 gap-12">
+                                <div className="space-y-6">
+                                    <h2 className="text-3xl font-bold text-slate-900">The Science Behind It</h2>
+                                    <p className="text-slate-600 leading-relaxed text-sm">
+                                        Freezing point depression is a <strong>colligative property</strong>. When a non-volatile solute is added, the vapor pressure of the solution becomes lower than that of the pure solvent.
+                                    </p>
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 font-mono text-xs">
+                                        <div className="text-blue-600 font-bold mb-1">Formula:</div>
+                                        ΔTf = Kf · m · i
+                                    </div>
+                                </div>
+                                <div className="space-y-6">
+                                    <h3 className="text-xl font-bold text-slate-900">Real-World Applications</h3>
+                                    <ul className="space-y-2 text-xs text-slate-600">
+                                        <li><strong>Salting Roads:</strong> Lowers the freezing point of water to melt ice.</li>
+                                        <li><strong>Antifreeze:</strong> Prevents car radiator coolant from freezing.</li>
+                                        <li><strong>Ice Cream:</strong> Salted ice creates super-cooled brine.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <footer className="pt-12 pb-8 text-center border-t border-slate-200">
+                            <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">CryoLab Interactive • Chemistry Series</p>
+                        </footer>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
