@@ -11,6 +11,11 @@ const animationFiles: Record<string, { title: string; src: string }[]> = {
     { title: "Ellipse", src: "/animations/conic-sections/ellipse.html" },
     { title: "Hyperbola", src: "/animations/conic-sections/hyperbola.html" },
   ],
+    "solutions": [
+    { title: "Henry's Law", src: "/animations/Chem_11th_Solutions_Henrys_Law.html"},
+    { title: "Boiling Point Elevation", src: "/animations/Chem_11th_Solutions_Boil_Point_Elevation.html" },
+    { title: "Freezing Point Depression", src: "/animations/Chem_11th_Solutions_Depression_in_FP.html" },
+  ],
 };
 
 const TopicDetail = () => {
