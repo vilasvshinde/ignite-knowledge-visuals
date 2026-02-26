@@ -1,7 +1,9 @@
 import { useParams } from "react-router-dom";
 import { getSubjectsForClass } from "@/data/curriculum";
-import { Play, MonitorPlay } from "lucide-react";
+import { Play, MonitorPlay, Maximize, Minimize } from "lucide-react";
+import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
+import { Button } from "@/components/ui/button";
 
 const animationFiles: Record<string, { title: string; src: string }[]> = {
   "conic-sections": [
@@ -19,6 +21,20 @@ const TopicDetail = () => {
   const topic = subjectData?.topics.find((t) => t.id === topicId);
   const boardLabel = board?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "";
   const files = topicId ? animationFiles[topicId] || [] : [];
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const iframeRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const toggleFullscreen = (index: number) => {
+    const el = iframeRefs.current[index];
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      setFullscreenIndex(null);
+    } else {
+      el.requestFullscreen();
+      setFullscreenIndex(index);
+    }
+  };
 
   if (!subjectData || !topic) {
     return <Layout><p className="text-muted-foreground">Topic not found.</p></Layout>;
@@ -55,12 +71,23 @@ const TopicDetail = () => {
               return (
                 <div
                   key={i}
+                  ref={(el) => { iframeRefs.current[i] = el; }}
                   className="rounded-2xl overflow-hidden border bg-card animate-fade-in-up"
                   style={{ animationDelay: `${i * 120}ms`, animationFillMode: "both" }}
                 >
-                  <div className="p-4 border-b flex items-center gap-2">
-                    <Play className="w-4 h-4 text-primary" />
-                    <p className="font-display font-bold text-foreground">{file.title}</p>
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Play className="w-4 h-4 text-primary" />
+                      <p className="font-display font-bold text-foreground">{file.title}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleFullscreen(i)}
+                      title={fullscreenIndex === i ? "Exit fullscreen" : "Fullscreen"}
+                    >
+                      {fullscreenIndex === i ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </Button>
                   </div>
                   <iframe
                     src={file.src}
