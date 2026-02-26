@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parabola — Interactive Learning</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #060912;
+    --surface:  #0d1320;
+    --card:     #111928;
+    --border:   #1e2d45;
+    --curve:    #00d4ff;
+    --focus:    #ff4d6d;
+    --dir:      #ffa500;
+    --axis:     #334466;
+    --tangent:  #39ff14;
+    --normal:   #ff44dd;
+    --chord:    #aa66ff;
+    --gold:     #ffd700;
+    --text:     #cde0f5;
+    --muted:    #5577aa;
+    --glow:     rgba(0,212,255,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Starfield background ── */
+  #stars {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,212,255,0.04) 0%, transparent 100%);
+  }
+  header .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--curve);
+    border: 1px solid var(--curve);
+    padding: 0.2rem 0.8rem;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+    letter-spacing: 2px;
+    opacity: 0.8;
+  }
+  header h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.8rem);
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #fff;
+    text-shadow: 0 0 40px rgba(0,212,255,0.5);
+    line-height: 1.1;
+  }
+  header h1 span { color: var(--curve); }
+  header p {
+    margin-top: 0.6rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Tab navigation ── */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 1.2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .tab-btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    padding: 0.45rem 1.1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { border-color: var(--curve); color: var(--curve); }
+  .tab-btn.active {
+    background: var(--glow);
+    border-color: var(--curve);
+    color: var(--curve);
+    box-shadow: 0 0 16px rgba(0,212,255,0.2);
+  }
+
+  /* ── Panel layout ── */
+  .panel { display: none; padding: 1.5rem 1rem 3rem; max-width: 1200px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  .panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 0.3rem;
+  }
+  .panel-title span { color: var(--curve); }
+  .panel-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.2rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  /* ── Canvas wrapper ── */
+  .canvas-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  canvas { display: block; width: 100%; }
+
+  /* ── Side panel ── */
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+  .info-card h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 0.7rem;
+    text-transform: uppercase;
+  }
+
+  .formula-box {
+    background: #070e1a;
+    border: 1px solid var(--curve);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--gold);
+    line-height: 1.7;
+    box-shadow: 0 0 20px rgba(0,212,255,0.08);
+  }
+  .formula-box .label { color: var(--muted); font-size: 0.72rem; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .stat {
+    background: #0a111f;
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat .s-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; }
+  .stat .s-value { font-size: 0.95rem; color: var(--curve); margin-top: 0.1rem; }
+
+  /* ── Sliders ── */
+  .slider-group { display: flex; flex-direction: column; gap: 0.7rem; }
+  .slider-row { display: flex; flex-direction: column; gap: 0.25rem; }
+  .slider-label {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .slider-label span { color: var(--gold); }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--curve);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--curve);
+    cursor: pointer;
+  }
+
+  /* ── Concept description ── */
+  .concept-text {
+    font-size: 0.88rem;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .concept-text strong { color: var(--gold); }
+  .concept-text .highlight {
+    display: inline-block;
+    background: rgba(0,212,255,0.08);
+    border-left: 2px solid var(--curve);
+    padding: 0.4rem 0.7rem;
+    margin: 0.4rem 0;
+    border-radius: 0 6px 6px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--curve);
+    width: 100%;
+  }
+
+  /* ── Legend ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .leg-item {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; color: var(--muted);
+  }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .leg-line { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--curve);
+    background: transparent;
+    color: var(--curve);
+    transition: all 0.2s;
+  }
+  .btn:hover { background: var(--glow); box-shadow: 0 0 12px rgba(0,212,255,0.2); }
+  .btn.active { background: var(--glow); }
+  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  /* ── Application cards ── */
+  .app-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .app-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .app-card canvas { display: block; width: 100%; }
+  .app-card-body { padding: 0.9rem 1rem; }
+  .app-card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #fff;
+    letter-spacing: 1px;
+    margin-bottom: 0.3rem;
+  }
+  .app-card-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+  /* ── Quiz section ── */
+  .quiz-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .quiz-q {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+  }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .quiz-opt {
+    background: #0a111f;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quiz-opt:hover { border-color: var(--curve); color: var(--curve); }
+  .quiz-opt.correct { border-color: var(--tangent); color: var(--tangent); background: rgba(57,255,20,0.06); }
+  .quiz-opt.wrong   { border-color: var(--focus); color: var(--focus); background: rgba(255,77,109,0.06); }
+  .quiz-feedback {
+    margin-top: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    display: none;
+  }
+  .quiz-score {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    color: var(--muted);
+    margin-top: 1rem;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="wrap">
+<header>
+  <div class="badge">11TH STD · MAHARASHTRA STATE BOARD · MATHEMATICS</div>
+  <h1>The <span>Parabola</span></h1>
+  <p>// Interactive Animated Simulation · Conic Sections</p>
+</header>
+
+<!-- TAB BAR -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab(0)">① Definition</button>
+  <button class="tab-btn" onclick="switchTab(1)">② Standard Forms</button>
+  <button class="tab-btn" onclick="switchTab(2)">③ Parametric</button>
+  <button class="tab-btn" onclick="switchTab(3)">④ Tangent & Normal</button>
+  <button class="tab-btn" onclick="switchTab(4)">⑤ Focal Chord</button>
+  <button class="tab-btn" onclick="switchTab(5)">⑥ Applications</button>
+  <button class="tab-btn" onclick="switchTab(6)">⑦ Quiz</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 0 — DEFINITION -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-0">
+  <div class="panel-title"><span>§1</span> Definition & Locus</div>
+  <div class="panel-sub">// PF = PD at every point · Eccentricity e = 1</div>
+  <div class="two-col">
+    <div class="canvas-wrap"><canvas id="c0" height="480"></canvas></div>
+    <div class="side">
+      <div class="info-card">
+        <h3>Core Concept</h3>
+        <div class="concept-text">
+          A <strong>parabola</strong> is the locus of all points P whose distance from a fixed point (Focus) equals its distance from a fixed line (Directrix).
+          <div class="highlight">PF = PD &nbsp;⟹&nbsp; e = 1</div>
+          Drag the slider to move point P along the parabola and watch PF = PD always hold!
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Live Measurements</h3>
+        <div class="stat-grid">
+          <div class="stat"><div class="s-label">FOCUS F</div><div class="s-value" id="d0-focus">(1, 0)</div></div>
+          <div class="stat"><div class="s-label">DIRECTRIX</div><div class="s-value" id="d0-dir">x = −1</div></div>
+          <div class="stat"><div class="s-label">PF (focal)</div><div class="s-value" id="d0-pf" style="color:var(--focus)">—</div></div>
+          <div class="stat"><div class="s-label">PD (perp)</div><div class="s-value" id="d0-pd" style="color:var(--curve)">—</div></div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Equation</h3>
+        <div class="formula-box">
+          y² = 4ax<br>
+          <span class="label">standard form (opens right)</span><br><br>
+          a = <span id="d0-a-val">1.00</span> &nbsp;|&nbsp; t = <span id="d0-t-val">1.00</span><br>
+          P = (<span id="d0-px">1.00</span>, <span id="d0-py">2.00</span>)
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Controls</h3>
+        <div class="slider-group">
+          <div class="slider-row">
+            <div class="slider-label">Parameter a <span id="lbl-a0">1.0</span></div>
+            <input type="range" id="sl-a0" min="0.5" max="4" step="0.1" value="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">Point t <span id="lbl-t0">1.0</span></div>
+            <input type="range" id="sl-t0" min="-3.5" max="3.5" step="0.05" value="1">
+          </div>
+        </div>
+        <br>
+        <div class="btn-row">
+          <button class="btn" id="btn-anim0">▶ AUTO-PLAY</button>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Legend</h3>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-line" style="background:var(--curve)"></div> Parabola</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--focus)"></div> Focus F</div>
+          <div class="leg-item"><div class="leg-line" style="background:var(--dir)"></div> Directrix</div>
+          <div class="leg-item"><div class="leg-line" style="background:var(--focus)"></div> PF</div>
+          <div class="leg-item"><div class="leg-line" style="background:var(--curve); opacity:0.6"></div> PD</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 1 — STANDARD FORMS -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-1">
+  <div class="panel-title"><span>§2</span> Four Standard Forms</div>
+  <div class="panel-sub">// y²=4ax · y²=−4ax · x²=4ay · x²=−4ay</div>
+  <div class="two-col">
+    <div class="canvas-wrap"><canvas id="c1" height="480"></canvas></div>
+    <div class="side">
+      <div class="info-card">
+        <h3>Select Form</h3>
+        <div class="btn-row">
+          <button class="btn active" id="sf0" onclick="setForm(0)">y²=4ax</button>
+          <button class="btn" id="sf1" onclick="setForm(1)">y²=−4ax</button>
+          <button class="btn" id="sf2" onclick="setForm(2)">x²=4ay</button>
+          <button class="btn" id="sf3" onclick="setForm(3)">x²=−4ay</button>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Properties</h3>
+        <div class="formula-box" id="sf-formula">
+          Equation: y² = 4ax<br>
+          Vertex: (0, 0)<br>
+          Focus: (a, 0)<br>
+          Directrix: x = −a<br>
+          Axis: y = 0 (x-axis)<br>
+          Latus Rectum: 4a<br>
+          Opens: RIGHT →
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Parameter a</h3>
+        <div class="slider-group">
+          <div class="slider-row">
+            <div class="slider-label">a <span id="lbl-a1">1.5</span></div>
+            <input type="range" id="sl-a1" min="0.4" max="4" step="0.1" value="1.5">
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Key Points</h3>
+        <div class="stat-grid">
+          <div class="stat"><div class="s-label">VERTEX</div><div class="s-value">(0, 0)</div></div>
+          <div class="stat"><div class="s-label">FOCUS</div><div class="s-value" id="sf-focus">(1.5, 0)</div></div>
+          <div class="stat"><div class="s-label">DIRECTRIX</div><div class="s-value" id="sf-dir">x=−1.5</div></div>
+          <div class="stat"><div class="s-label">LATUS REC.</div><div class="s-value" id="sf-lr">6.0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 2 — PARAMETRIC -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-2">
+  <div class="panel-title"><span>§3</span> Parametric Form</div>
+  <div class="panel-sub">// P(at², 2at) · Tangent ty = x + at² · Normal y + tx = 2at + at³</div>
+  <div class="two-col">
+    <div class="canvas-wrap"><canvas id="c2" height="480"></canvas></div>
+    <div class="side">
+      <div class="info-card">
+        <h3>Concept</h3>
+        <div class="concept-text">
+          Every point on <strong>y² = 4ax</strong> can be written as:
+          <div class="highlight">P = (at², 2at)</div>
+          Here <strong>t</strong> is the parameter. When t changes, P traces the entire parabola.
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Equations</h3>
+        <div class="formula-box">
+          Point P = (at², 2at)<br>
+          <span class="label">──────────────────────</span><br>
+          Tangent: ty = x + at²<br>
+          <span class="label">slope = 1/t</span><br><br>
+          Normal: y + tx = 2at + at³<br>
+          <span class="label">slope = −t</span>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Live Values</h3>
+        <div class="stat-grid">
+          <div class="stat"><div class="s-label">t</div><div class="s-value" id="p2-t">1.50</div></div>
+          <div class="stat"><div class="s-label">a</div><div class="s-value" id="p2-a">1.00</div></div>
+          <div class="stat"><div class="s-label">P(x, y)</div><div class="s-value" id="p2-pt">(1.50, 3.00)</div></div>
+          <div class="stat"><div class="s-label">Tan.slope</div><div class="s-value" id="p2-ts">0.67</div></div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Controls</h3>
+        <div class="slider-group">
+          <div class="slider-row">
+            <div class="slider-label">t <span id="lbl-t2">1.5</span></div>
+            <input type="range" id="sl-t2" min="-3.5" max="3.5" step="0.05" value="1.5">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">a <span id="lbl-a2">1.0</span></div>
+            <input type="range" id="sl-a2" min="0.5" max="3.5" step="0.1" value="1">
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Legend</h3>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-line" style="background:var(--curve)"></div> Parabola</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--gold)"></div> Point P</div>
+          <div class="leg-item"><div class="leg-line" style="background:var(--tangent)"></div> Tangent</div>
+          <div class="leg-item"><div class="leg-line" style="background:var(--normal)"></div> Normal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 3 — TANGENT & NORMAL -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-3">
+  <div class="panel-title"><span>§4</span> Tangent &amp; Normal</div>
+  <div class="panel-sub">// Concurrent normals · t₁+t₂+t₃ = 0</div>
+  <div class="two-col">
+    <div class="canvas-wrap"><canvas id="c3" height="480"></canvas></div>
+    <div class="side">
+      <div class="info-card">
+        <h3>Key Result</h3>
+        <div class="concept-text">
+          If normals at t₁, t₂, t₃ on <strong>y² = 4ax</strong> all meet at the same point, then:
+          <div class="highlight">t₁ + t₂ + t₃ = 0</div>
+          Here t₃ is auto-computed. The ★ shows where they meet!
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Equations</h3>
+        <div class="formula-box">
+          Normal at t:<br>
+          y + tx = 2at + at³<br>
+          <span class="label">──────────────────────</span><br>
+          t₁ = <span id="n3-t1">1.0</span><br>
+          t₂ = <span id="n3-t2">2.0</span><br>
+          t₃ = −t₁−t₂ = <span id="n3-t3">−3.0</span><br>
+          Sum = <span id="n3-sum">0.00</span> ✓
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Controls</h3>
+        <div class="slider-group">
+          <div class="slider-row">
+            <div class="slider-label">t₁ <span id="lbl-t31">1.0</span></div>
+            <input type="range" id="sl-t31" min="-3" max="3" step="0.1" value="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">t₂ <span id="lbl-t32">2.0</span></div>
+            <input type="range" id="sl-t32" min="-3" max="3" step="0.1" value="2">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">a <span id="lbl-a3">1.0</span></div>
+            <input type="range" id="sl-a3" min="0.5" max="3" step="0.1" value="1">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 4 — FOCAL CHORD -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-4">
+  <div class="panel-title"><span>§5</span> Focal Chord &amp; Latus Rectum</div>
+  <div class="panel-sub">// t₁·t₂ = −1 for any focal chord</div>
+  <div class="two-col">
+    <div class="canvas-wrap"><canvas id="c4" height="480"></canvas></div>
+    <div class="side">
+      <div class="info-card">
+        <h3>Focal Chord</h3>
+        <div class="concept-text">
+          A chord passing through the focus is a <strong>focal chord</strong>. For endpoints at parameters t₁ and t₂:
+          <div class="highlight">t₁ · t₂ = −1</div>
+          The <strong>Latus Rectum</strong> is the focal chord perpendicular to the axis (t₁=1, t₂=−1), with length <strong>4a</strong>.
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Live Values</h3>
+        <div class="formula-box">
+          t₁ = <span id="fc-t1">1.5</span><br>
+          t₂ = −1/t₁ = <span id="fc-t2">−0.67</span><br>
+          t₁·t₂ = <span id="fc-prod">−1.00</span> ✓<br>
+          <span class="label">──────────────────────</span><br>
+          Chord length = <span id="fc-len">—</span><br>
+          Latus Rectum = <span id="fc-lr">4.0</span>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3>Controls</h3>
+        <div class="slider-group">
+          <div class="slider-row">
+            <div class="slider-label">t₁ <span id="lbl-fc-t1">1.5</span></div>
+            <input type="range" id="sl-fc-t1" min="0.2" max="3.5" step="0.05" value="1.5">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">a <span id="lbl-fc-a">1.0</span></div>
+            <input type="range" id="sl-fc-a" min="0.5" max="3.5" step="0.1" value="1">
+          </div>
+        </div>
+        <br>
+        <button class="btn" onclick="resetFocalChord()">Show Latus Rectum</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 5 — APPLICATIONS -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-5">
+  <div class="panel-title"><span>§6</span> Real-Life Applications</div>
+  <div class="panel-sub">// Parabolas are everywhere in nature and engineering</div>
+  <div class="app-grid">
+    <div class="app-card">
+      <canvas id="cApp0" height="220"></canvas>
+      <div class="app-card-body">
+        <div class="app-card-title">🏀 Projectile Motion</div>
+        <div class="app-card-desc">A ball thrown at angle θ follows a parabolic path. y = x·tanθ − gx²/(2v₀²cos²θ)</div>
+        <br>
+        <div class="slider-row">
+          <div class="slider-label">Angle θ <span id="lbl-app0">45</span>°</div>
+          <input type="range" id="sl-app0" min="10" max="80" step="1" value="45">
+        </div>
+      </div>
+    </div>
+    <div class="app-card">
+      <canvas id="cApp1" height="220"></canvas>
+      <div class="app-card-body">
+        <div class="app-card-title">📡 Parabolic Dish</div>
+        <div class="app-card-desc">All parallel rays reflect through the focal point. Used in satellite dishes, telescopes & solar cookers.</div>
+        <br>
+        <div class="slider-row">
+          <div class="slider-label">Depth <span id="lbl-app1">1.0</span></div>
+          <input type="range" id="sl-app1" min="0.3" max="3" step="0.1" value="1">
+        </div>
+      </div>
+    </div>
+    <div class="app-card">
+      <canvas id="cApp2" height="220"></canvas>
+      <div class="app-card-body">
+        <div class="app-card-title">🌉 Bridge Arch</div>
+        <div class="app-card-desc">Suspension bridges use inverted parabolic cables to distribute load evenly across the span.</div>
+        <br>
+        <div class="slider-row">
+          <div class="slider-label">Sag <span id="lbl-app2">2.0</span></div>
+          <input type="range" id="sl-app2" min="0.5" max="4" step="0.1" value="2">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PANEL 6 — QUIZ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-6">
+  <div class="panel-title"><span>§7</span> Quick Quiz</div>
+  <div class="panel-sub">// Test your understanding · Maharashtra Board style</div>
+  <div class="quiz-card">
+    <div class="quiz-q" id="q-text">Loading…</div>
+    <div class="quiz-options" id="q-opts"></div>
+    <div class="quiz-feedback" id="q-fb"></div>
+    <div class="quiz-score" id="q-score">Score: 0 / 0</div>
+    <br>
+    <button class="btn" onclick="nextQuestion()" id="btn-next-q" style="display:none">Next Question →</button>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// STARS BACKGROUND
+// ══════════════════════════════════════════════════════
+(function(){
+  const c = document.getElementById('stars');
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function resize(){
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    stars = Array.from({length:180}, ()=>({
+      x: Math.random()*c.width, y: Math.random()*c.height,
+      r: Math.random()*1.2, o: Math.random()*0.6+0.2,
+      s: Math.random()*0.3+0.1
+    }));
+  }
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      s.o += s.s*0.02; if(s.o>0.9||s.o<0.1) s.s*=-1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(180,210,255,${s.o})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); draw();
+})();
+
+// ══════════════════════════════════════════════════════
+// UTILITY: coordinate transform
+// ══════════════════════════════════════════════════════
+function makeCoord(canvas, xRange=[-8,8], yRange=[-7,7]){
+  const W = canvas.width, H = canvas.height;
+  const px = (x) => (x - xRange[0]) / (xRange[1]-xRange[0]) * W;
+  const py = (y) => H - (y - yRange[0]) / (yRange[1]-yRange[0]) * H;
+  const ox = px(0), oy = py(0);
+  return { W, H, px, py, ox, oy, xRange, yRange };
+}
+
+function drawGrid(ctx, C, lw=1){
+  ctx.strokeStyle='#1a2540'; ctx.lineWidth=lw;
+  for(let x=Math.ceil(C.xRange[0]); x<=Math.floor(C.xRange[1]); x++){
+    if(x===0) continue;
+    ctx.beginPath(); ctx.moveTo(C.px(x),0); ctx.lineTo(C.px(x),C.H); ctx.stroke();
+    ctx.fillStyle='#334466'; ctx.font='9px JetBrains Mono';
+    ctx.fillText(x, C.px(x)+2, C.oy-2);
+  }
+  for(let y=Math.ceil(C.yRange[0]); y<=Math.floor(C.yRange[1]); y++){
+    if(y===0) continue;
+    ctx.beginPath(); ctx.moveTo(0,C.py(y)); ctx.lineTo(C.W,C.py(y)); ctx.stroke();
+    ctx.fillStyle='#334466'; ctx.font='9px JetBrains Mono';
+    ctx.fillText(y, C.ox+2, C.py(y)-2);
+  }
+  // Axes
+  ctx.strokeStyle='#2a3f60'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,C.oy); ctx.lineTo(C.W,C.oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(C.ox,0); ctx.lineTo(C.ox,C.H); ctx.stroke();
+}
+
+function drawParabolaRight(ctx, C, a, color='#00d4ff', lw=2.5){
+  // y² = 4ax → x = y²/(4a)
+  ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.shadowBlur = 12; ctx.shadowColor = color;
+  ctx.beginPath();
+  let first = true;
+  for(let y = C.yRange[0]; y <= C.yRange[1]; y += 0.03){
+    const x = y*y/(4*a);
+    if(x < C.xRange[0] || x > C.xRange[1]){ first=true; continue; }
+    if(first){ ctx.moveTo(C.px(x), C.py(y)); first=false; }
+    else ctx.lineTo(C.px(x), C.py(y));
+  }
+  ctx.stroke(); ctx.shadowBlur=0;
+}
+
+function dot(ctx, px, py, r, color, label='', off=[8,-8]){
+  ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.shadowBlur = 14; ctx.shadowColor = color;
+  ctx.fill(); ctx.shadowBlur = 0;
+  if(label){
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px JetBrains Mono';
+    ctx.fillText(label, px+off[0], py+off[1]);
+  }
+}
+
+function line(ctx, x1,y1,x2,y2, color, lw=1.5, dash=[]){
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.setLineDash(dash);
+  ctx.shadowBlur = lw>2 ? 8 : 0; ctx.shadowColor = color;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════
+// RESIZE ALL CANVASES
+// ══════════════════════════════════════════════════════
+function setCanvasSize(id, h=480){
+  const c = document.getElementById(id);
+  if(!c) return;
+  c.width = c.parentElement.clientWidth;
+  c.height = h;
+}
+
+function resizeAll(){
+  ['c0','c1','c2','c3','c4'].forEach(id => setCanvasSize(id, 480));
+  ['cApp0','cApp1','cApp2'].forEach(id => setCanvasSize(id, 220));
+}
+
+// ══════════════════════════════════════════════════════
+// PANEL 0 — DEFINITION
+// ══════════════════════════════════════════════════════
+let anim0 = null, animPlaying0 = false, animT0 = -3.5;
+
+function drawPanel0(){
+  const canvas = document.getElementById('c0');
+  const ctx = canvas.getContext('2d');
+  const a = parseFloat(document.getElementById('sl-a0').value);
+  const t = parseFloat(document.getElementById('sl-t0').value);
+  const C = makeCoord(canvas, [-3, 10], [-8, 8]);
+
+  ctx.clearRect(0,0,C.W,C.H);
+  // bg gradient
+  const grd = ctx.createRadialGradient(C.W/2,C.H/2,0,C.W/2,C.H/2,C.W*0.7);
+  grd.addColorStop(0,'#0d1a2e'); grd.addColorStop(1,'#060912');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,C.W,C.H);
+  drawGrid(ctx, C);
+
+  // Directrix x = -a
+  const dxPx = C.px(-a);
+  line(ctx, dxPx, 0, dxPx, C.H, '#ffa500', 2, [6,4]);
+  ctx.fillStyle = '#ffa500'; ctx.font = '11px JetBrains Mono';
+  ctx.fillText(`x = −${a.toFixed(1)}`, dxPx+4, 16);
+
+  // Parabola
+  drawParabolaRight(ctx, C, a);
+
+  // Axis of symmetry
+  line(ctx, 0, C.oy, C.W, C.oy, '#334466', 1, [4,4]);
+
+  // Focus
+  const Fx = C.px(a), Fy = C.oy;
+  dot(ctx, Fx, Fy, 7, '#ff4d6d', `F(${a.toFixed(1)},0)`, [8,-12]);
+
+  // Point P
+  const Px = a*t*t, Py = 2*a*t;
+  const PPx = C.px(Px), PPy = C.py(Py);
+  if(Px >= C.xRange[0] && Px <= C.xRange[1]){
+    // PF line
+    line(ctx, PPx, PPy, Fx, Fy, '#ff4d6d', 2.5);
+    // PD line (perpendicular to directrix)
+    line(ctx, PPx, PPy, dxPx, PPy, '#00d4ff', 2, [3,3]);
+    // P dot
+    dot(ctx, PPx, PPy, 7, '#ffd700', `P`, [8,4]);
+
+    // PF and PD values
+    const pf = Math.sqrt((Px-a)**2 + Py**2);
+    const pd = Px + a; // distance to directrix x=-a
+    document.getElementById('d0-pf').textContent = pf.toFixed(3);
+    document.getElementById('d0-pd').textContent = pd.toFixed(3);
+    document.getElementById('d0-px').textContent = Px.toFixed(2);
+    document.getElementById('d0-py').textContent = Py.toFixed(2);
+
+    // equality badge
+    const eq = Math.abs(pf-pd) < 0.01;
+    ctx.fillStyle = eq ? '#39ff14' : '#ff4d6d';
+    ctx.font = 'bold 13px Rajdhani';
+    ctx.fillText(`PF=${pf.toFixed(2)}  PD=${pd.toFixed(2)}  ${eq?'✓ Equal!':''}`, 10, C.H-16);
+  }
+
+  document.getElementById('d0-focus').textContent = `(${a.toFixed(1)}, 0)`;
+  document.getElementById('d0-dir').textContent = `x = −${a.toFixed(1)}`;
+  document.getElementById('d0-a-val').textContent = a.toFixed(2);
+  document.getElementById('d0-t-val').textContent = t.toFixed(2);
+}
+
+document.getElementById('sl-a0').addEventListener('input', e=>{
+  document.getElementById('lbl-a0').textContent = parseFloat(e.target.value).toFixed(1);
+  drawPanel0();
+});
+document.getElementById('sl-t0').addEventListener('input', e=>{
+  document.getElementById('lbl-t0').textContent = parseFloat(e.target.value).toFixed(2);
+  drawPanel0();
+});
+
+document.getElementById('btn-anim0').addEventListener('click', function(){
+  animPlaying0 = !animPlaying0;
+  this.textContent = animPlaying0 ? '⏹ STOP' : '▶ AUTO-PLAY';
+  if(animPlaying0){
+    let dir = 1;
+    anim0 = setInterval(()=>{
+      animT0 += 0.05 * dir;
+      if(animT0 >= 3.5){ dir=-1; }
+      if(animT0 <= -3.5){ dir=1; }
+      const sl = document.getElementById('sl-t0');
+      sl.value = animT0;
+      document.getElementById('lbl-t0').textContent = animT0.toFixed(2);
+      drawPanel0();
+    }, 30);
+  } else { clearInterval(anim0); }
+});
+
+// ══════════════════════════════════════════════════════
+// PANEL 1 — STANDARD FORMS
+// ══════════════════════════════════════════════════════
+let currentForm = 0;
+const formDefs = [
+  { eq:'y² = 4ax', focus:(a)=>`(${a},0)`, dir:(a)=>`x=−${a}`, axis:'y=0 (x-axis)', opens:'RIGHT →', draw:(ctx,C,a)=>drawParabolaRight(ctx,C,a) },
+  { eq:'y² = −4ax', focus:(a)=>`(−${a},0)`, dir:(a)=>`x=${a}`, axis:'y=0 (x-axis)', opens:'LEFT ←',
+    draw:(ctx,C,a)=>{ ctx.strokeStyle='#00d4ff';ctx.lineWidth=2.5;ctx.shadowBlur=12;ctx.shadowColor='#00d4ff';
+      ctx.beginPath(); let f=true;
+      for(let y=C.yRange[0];y<=C.yRange[1];y+=0.03){
+        const x=-y*y/(4*a); if(x<C.xRange[0]||x>C.xRange[1]){f=true;continue;}
+        if(f){ctx.moveTo(C.px(x),C.py(y));f=false;}else ctx.lineTo(C.px(x),C.py(y));
+      } ctx.stroke();ctx.shadowBlur=0;
+    }
+  },
+  { eq:'x² = 4ay', focus:(a)=>`(0,${a})`, dir:(a)=>`y=−${a}`, axis:'x=0 (y-axis)', opens:'UP ↑',
+    draw:(ctx,C,a)=>{ ctx.strokeStyle='#00d4ff';ctx.lineWidth=2.5;ctx.shadowBlur=12;ctx.shadowColor='#00d4ff';
+      ctx.beginPath(); let f=true;
+      for(let x=C.xRange[0];x<=C.xRange[1];x+=0.03){
+        const y=x*x/(4*a); if(y<C.yRange[0]||y>C.yRange[1]){f=true;continue;}
+        if(f){ctx.moveTo(C.px(x),C.py(y));f=false;}else ctx.lineTo(C.px(x),C.py(y));
+      } ctx.stroke();ctx.shadowBlur=0;
+    }
+  },
+  { eq:'x² = −4ay', focus:(a)=>`(0,−${a})`, dir:(a)=>`y=${a}`, axis:'x=0 (y-axis)', opens:'DOWN ↓',
+    draw:(ctx,C,a)=>{ ctx.strokeStyle='#00d4ff';ctx.lineWidth=2.5;ctx.shadowBlur=12;ctx.shadowColor='#00d4ff';
+      ctx.beginPath(); let f=true;
+      for(let x=C.xRange[0];x<=C.xRange[1];x+=0.03){
+        const y=-x*x/(4*a); if(y<C.yRange[0]||y>C.yRange[1]){f=true;continue;}
+        if(f){ctx.moveTo(C.px(x),C.py(y));f=false;}else ctx.lineTo(C.px(x),C.py(y));
+      } ctx.stroke();ctx.shadowBlur=0;
+    }
+  },
+];
+
+function setForm(i){
+  currentForm = i;
+  [0,1,2,3].forEach(j => document.getElementById(`sf${j}`).classList.toggle('active', j===i));
+  drawPanel1();
+}
+
+function drawPanel1(){
+  const canvas = document.getElementById('c1');
+  const ctx = canvas.getContext('2d');
+  const a = parseFloat(document.getElementById('sl-a1').value);
+  const C = makeCoord(canvas, [-8,8], [-7,7]);
+  const fd = formDefs[currentForm];
+
+  ctx.clearRect(0,0,C.W,C.H);
+  const grd = ctx.createRadialGradient(C.W/2,C.H/2,0,C.W/2,C.H/2,C.W*0.7);
+  grd.addColorStop(0,'#0d1a2e'); grd.addColorStop(1,'#060912');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,C.W,C.H);
+  drawGrid(ctx, C);
+
+  fd.draw(ctx, C, a);
+
+  // Vertex
+  dot(ctx, C.px(0), C.py(0), 6, '#ffffff', 'V(0,0)', [6,6]);
+
+  // Focus
+  let Fx, Fy;
+  if(currentForm===0){ Fx=a; Fy=0; }
+  else if(currentForm===1){ Fx=-a; Fy=0; }
+  else if(currentForm===2){ Fx=0; Fy=a; }
+  else { Fx=0; Fy=-a; }
+  dot(ctx, C.px(Fx), C.py(Fy), 7, '#ff4d6d', `F`, [8,-12]);
+
+  // Directrix
+  if(currentForm<=1){
+    const dx = currentForm===0 ? -a : a;
+    line(ctx, C.px(dx), 0, C.px(dx), C.H, '#ffa500', 2, [6,4]);
+    ctx.fillStyle='#ffa500'; ctx.font='11px JetBrains Mono';
+    ctx.fillText(`x=${dx>0?'+':''} ${dx.toFixed(1)}`, C.px(dx)+4, 14);
+  } else {
+    const dy = currentForm===2 ? -a : a;
+    line(ctx, 0, C.py(dy), C.W, C.py(dy), '#ffa500', 2, [6,4]);
+    ctx.fillStyle='#ffa500'; ctx.font='11px JetBrains Mono';
+    ctx.fillText(`y=${dy.toFixed(1)}`, 4, C.py(dy)-4);
+  }
+
+  // Latus rectum
+  if(currentForm===0){ line(ctx,C.px(a),C.py(-2*a),C.px(a),C.py(2*a),'#aa66ff',3); }
+  else if(currentForm===1){ line(ctx,C.px(-a),C.py(-2*a),C.px(-a),C.py(2*a),'#aa66ff',3); }
+  else if(currentForm===2){ line(ctx,C.px(-2*a),C.py(a),C.px(2*a),C.py(a),'#aa66ff',3); }
+  else { line(ctx,C.px(-2*a),C.py(-a),C.px(2*a),C.py(-a),'#aa66ff',3); }
+
+  ctx.fillStyle='#aa66ff'; ctx.font='11px JetBrains Mono';
+  ctx.fillText(`LR = 4a = ${(4*a).toFixed(1)}`, C.px(Fx)+4, C.py(Fy)-20);
+
+  // Axis of symmetry
+  if(currentForm<=1) line(ctx,0,C.oy,C.W,C.oy,'#334466',1,[4,4]);
+  else line(ctx,C.ox,0,C.ox,C.H,'#334466',1,[4,4]);
+
+  // Formula
+  ctx.fillStyle='rgba(0,212,255,0.12)';
+  ctx.fillRect(8,8,230,28); ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1;
+  ctx.strokeRect(8,8,230,28);
+  ctx.fillStyle='#ffd700'; ctx.font='bold 13px JetBrains Mono';
+  ctx.fillText(fd.eq, 16, 28);
+
+  // Update side panel
+  document.getElementById('sf-formula').innerHTML =
+    `Equation: ${fd.eq}<br>Vertex: (0, 0)<br>Focus: ${fd.focus(a.toFixed(2))}<br>`+
+    `Directrix: ${fd.dir(a.toFixed(2))}<br>Axis: ${fd.axis}<br>`+
+    `Latus Rectum: ${(4*a).toFixed(2)}<br>Opens: ${fd.opens}`;
+  document.getElementById('sf-focus').textContent = fd.focus(a.toFixed(2));
+  document.getElementById('sf-dir').textContent = fd.dir(a.toFixed(2));
+  document.getElementById('sf-lr').textContent = (4*a).toFixed(2);
+}
+
+document.getElementById('sl-a1').addEventListener('input', e=>{
+  document.getElementById('lbl-a1').textContent = parseFloat(e.target.value).toFixed(1);
+  drawPanel1();
+});
+
+// ══════════════════════════════════════════════════════
+// PANEL 2 — PARAMETRIC
+// ══════════════════════════════════════════════════════
+function drawPanel2(){
+  const canvas = document.getElementById('c2');
+  const ctx = canvas.getContext('2d');
+  const t = parseFloat(document.getElementById('sl-t2').value);
+  const a = parseFloat(document.getElementById('sl-a2').value);
+  const C = makeCoord(canvas, [-2,12], [-8,8]);
+
+  ctx.clearRect(0,0,C.W,C.H);
+  const grd = ctx.createRadialGradient(C.W/2,C.H/2,0,C.W/2,C.H/2,C.W*0.7);
+  grd.addColorStop(0,'#0d1a2e'); grd.addColorStop(1,'#060912');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,C.W,C.H);
+  drawGrid(ctx, C);
+
+  drawParabolaRight(ctx, C, a);
+
+  const Px=a*t*t, Py=2*a*t;
+  const tSafe = Math.abs(t)<0.01 ? (t<0?-0.01:0.01) : t;
+
+  // Tangent: ty = x + at²  → y = (x+at²)/t
+  ctx.strokeStyle='#39ff14'; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.shadowBlur=10; ctx.shadowColor='#39ff14'; ctx.beginPath();
+  let first=true;
+  for(let x=C.xRange[0]; x<=C.xRange[1]; x+=0.05){
+    const y=(x+a*t*t)/tSafe;
+    if(y<C.yRange[0]||y>C.yRange[1]){first=true;continue;}
+    if(first){ctx.moveTo(C.px(x),C.py(y));first=false;}
+    else ctx.lineTo(C.px(x),C.py(y));
+  }
+  ctx.stroke(); ctx.shadowBlur=0;
+
+  // Normal: y + tx = 2at + at³ → y = 2at+at³-tx
+  ctx.strokeStyle='#ff44dd'; ctx.lineWidth=2; ctx.shadowBlur=10; ctx.shadowColor='#ff44dd';
+  ctx.beginPath(); first=true;
+  for(let x=C.xRange[0]; x<=C.xRange[1]; x+=0.05){
+    const y=2*a*t+a*t*t*t-t*x;
+    if(y<C.yRange[0]||y>C.yRange[1]){first=true;continue;}
+    if(first){ctx.moveTo(C.px(x),C.py(y));first=false;}
+    else ctx.lineTo(C.px(x),C.py(y));
+  }
+  ctx.stroke(); ctx.shadowBlur=0; ctx.setLineDash([]);
+
+  // Focus
+  dot(ctx, C.px(a), C.py(0), 6, '#ff4d6d', 'F', [6,-14]);
+  // Point P
+  if(Px>=C.xRange[0]&&Px<=C.xRange[1])
+    dot(ctx, C.px(Px), C.py(Py), 8, '#ffd700', `P(${Px.toFixed(1)},${Py.toFixed(1)})`, [8,6]);
+
+  // Update side
+  document.getElementById('p2-t').textContent = t.toFixed(2);
+  document.getElementById('p2-a').textContent = a.toFixed(2);
+  document.getElementById('p2-pt').textContent = `(${Px.toFixed(2)},${Py.toFixed(2)})`;
+  document.getElementById('p2-ts').textContent = (1/tSafe).toFixed(3);
+  document.getElementById('lbl-t2').textContent = t.toFixed(2);
+  document.getElementById('lbl-a2').textContent = a.toFixed(2);
+}
+
+document.getElementById('sl-t2').addEventListener('input', ()=>drawPanel2());
+document.getElementById('sl-a2').addEventListener('input', ()=>drawPanel2());
+
+// ══════════════════════════════════════════════════════
+// PANEL 3 — TANGENT & NORMAL (Concurrent)
+// ══════════════════════════════════════════════════════
+function drawPanel3(){
+  const canvas = document.getElementById('c3');
+  const ctx = canvas.getContext('2d');
+  const t1 = parseFloat(document.getElementById('sl-t31').value);
+  const t2 = parseFloat(document.getElementById('sl-t32').value);
+  const a  = parseFloat(document.getElementById('sl-a3').value);
+  const t3 = -t1 - t2;
+  const C = makeCoord(canvas, [-2,14], [-9,9]);
+
+  ctx.clearRect(0,0,C.W,C.H);
+  const grd = ctx.createRadialGradient(C.W/2,C.H/2,0,C.W/2,C.H/2,C.W*0.7);
+  grd.addColorStop(0,'#0d1a2e'); grd.addColorStop(1,'#060912');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,C.W,C.H);
+  drawGrid(ctx, C);
+
+  drawParabolaRight(ctx, C, a);
+
+  const colors = ['#ff44dd','#39ff14','#ffa500'];
+  const ts = [t1, t2, t3];
+  const points = [];
+
+  ts.forEach((t, i) => {
+    const tS = Math.abs(t)<0.01?(t<0?-0.01:0.01):t;
+    // Normal: y + tx = 2at + at³
+    ctx.strokeStyle=colors[i]; ctx.lineWidth=2; ctx.shadowBlur=8; ctx.shadowColor=colors[i];
+    ctx.beginPath(); let first=true;
+    for(let x=C.xRange[0]; x<=C.xRange[1]; x+=0.05){
+      const y=2*a*t+a*t*t*t-t*x;
+      if(y<C.yRange[0]||y>C.yRange[1]){first=true;continue;}
+      if(first){ctx.moveTo(C.px(x),C.py(y));first=false;}
+      else ctx.lineTo(C.px(x),C.py(y));
+    }
+    ctx.stroke(); ctx.shadowBlur=0;
+
+    // Point on parabola
+    const px=a*t*t, py=2*a*t;
+    if(px>=C.xRange[0]&&px<=C.xRange[1])
+      dot(ctx, C.px(px), C.py(py), 6, colors[i], `t=${t.toFixed(1)}`, [6,-14]);
+    points.push({ px, py, t });
+  });
+
+  // Meeting point: intersection of normals at t1 and t2
+  // 2at₁+at₁³-t₁x = 2at₂+at₂³-t₂x → (t₂-t₁)x = 2a(t₁-t₂)+a(t₁³-t₂³)
+  if(Math.abs(t2-t1)>0.01){
+    const xm = (2*a*(t1-t2)+a*(t1**3-t2**3))/(t2-t1);
+    const ym = 2*a*t1+a*t1**3-t1*xm;
+    if(xm>=C.xRange[0]&&xm<=C.xRange[1]&&Math.abs(ym)<=C.yRange[1]){
+      dot(ctx, C.px(xm), C.py(ym), 10, '#ffffff', '★', [-14,-10]);
+    }
+  }
+
+  // Focus
+  dot(ctx, C.px(a), C.py(0), 5, '#ff4d6d', 'F', [6,-14]);
+
+  document.getElementById('n3-t1').textContent = t1.toFixed(2);
+  document.getElementById('n3-t2').textContent = t2.toFixed(2);
+  document.getElementById('n3-t3').textContent = t3.toFixed(2);
+  document.getElementById('n3-sum').textContent = (t1+t2+t3).toFixed(3);
+  document.getElementById('lbl-t31').textContent = t1.toFixed(1);
+  document.getElementById('lbl-t32').textContent = t2.toFixed(1);
+  document.getElementById('lbl-a3').textContent  = a.toFixed(1);
+}
+
+['sl-t31','sl-t32','sl-a3'].forEach(id => document.getElementById(id).addEventListener('input', drawPanel3));
+
+// ══════════════════════════════════════════════════════
+// PANEL 4 — FOCAL CHORD
+// ══════════════════════════════════════════════════════
+function drawPanel4(){
+  const canvas = document.getElementById('c4');
+  const ctx = canvas.getContext('2d');
+  const t1 = parseFloat(document.getElementById('sl-fc-t1').value);
+  const a  = parseFloat(document.getElementById('sl-fc-a').value);
+  const t2 = -1/t1;
+  const C = makeCoord(canvas, [-2,12], [-8,8]);
+
+  ctx.clearRect(0,0,C.W,C.H);
+  const grd = ctx.createRadialGradient(C.W/2,C.H/2,0,C.W/2,C.H/2,C.W*0.7);
+  grd.addColorStop(0,'#0d1a2e'); grd.addColorStop(1,'#060912');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,C.W,C.H);
+  drawGrid(ctx, C);
+
+  drawParabolaRight(ctx, C, a);
+
+  // Latus rectum (always shown as reference)
+  line(ctx, C.px(a), C.py(-2*a), C.px(a), C.py(2*a), '#aa66ff', 2.5, [4,3]);
+  ctx.fillStyle='#aa66ff'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`LR=4a=${(4*a).toFixed(1)}`, C.px(a)+4, C.py(-2*a)+14);
+
+  // Focal chord endpoints
+  const P1x=a*t1*t1, P1y=2*a*t1;
+  const P2x=a*t2*t2, P2y=2*a*t2;
+
+  // Chord line
+  line(ctx, C.px(P1x), C.py(P1y), C.px(P2x), C.py(P2y), '#ffd700', 2.5);
+
+  // Points
+  dot(ctx, C.px(P1x), C.py(P1y), 7, '#ffd700', `P₁(${P1x.toFixed(1)},${P1y.toFixed(1)})`, [6,6]);
+  dot(ctx, C.px(P2x), C.py(P2y), 7, '#ff8844', `P₂(${P2x.toFixed(1)},${P2y.toFixed(1)})`, [6,-16]);
+
+  // Focus
+  dot(ctx, C.px(a), C.py(0), 8, '#ff4d6d', `F(${a.toFixed(1)},0)`, [8,-12]);
+
+  const len = Math.sqrt((P1x-P2x)**2+(P1y-P2y)**2);
+  document.getElementById('fc-t1').textContent  = t1.toFixed(2);
+  document.getElementById('fc-t2').textContent  = t2.toFixed(2);
+  document.getElementById('fc-prod').textContent= (t1*t2).toFixed(3);
+  document.getElementById('fc-len').textContent = len.toFixed(3);
+  document.getElementById('fc-lr').textContent  = (4*a).toFixed(2);
+  document.getElementById('lbl-fc-t1').textContent = t1.toFixed(2);
+  document.getElementById('lbl-fc-a').textContent  = a.toFixed(2);
+}
+
+['sl-fc-t1','sl-fc-a'].forEach(id => document.getElementById(id).addEventListener('input', drawPanel4));
+
+function resetFocalChord(){
+  document.getElementById('sl-fc-t1').value = 1.0;
+  document.getElementById('lbl-fc-t1').textContent = '1.00';
+  drawPanel4();
+}
+
+// ══════════════════════════════════════════════════════
+// PANEL 5 — APPLICATIONS
+// ══════════════════════════════════════════════════════
+function drawApp0(){
+  const canvas = document.getElementById('cApp0');
+  const ctx = canvas.getContext('2d');
+  const theta = parseFloat(document.getElementById('sl-app0').value) * Math.PI/180;
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a111f'; ctx.fillRect(0,0,W,H);
+
+  const g=9.8, v0=20;
+  const vx=v0*Math.cos(theta), vy=v0*Math.sin(theta);
+  const T=2*vy/g;
+  const R=vx*T, Hmax=vy*vy/(2*g);
+  const scX=W/(R*1.1||1), scY=H/(Hmax*2.5||1);
+  const ox=20, oy=H-20;
+
+  // Ground
+  ctx.strokeStyle='#334466'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(W-4,oy); ctx.stroke();
+
+  // Trajectory
+  ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2;
+  ctx.shadowBlur=10; ctx.shadowColor='#00d4ff';
+  ctx.beginPath(); let first=true;
+  for(let t=0; t<=T+0.01; t+=0.02){
+    const x=vx*t*scX+ox, y=oy-(vy*t-0.5*g*t*t)*scY;
+    if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);
+  }
+  ctx.stroke(); ctx.shadowBlur=0;
+
+  // Max height arrow
+  const xm=(R/2)*scX+ox, ym=oy-Hmax*scY;
+  ctx.strokeStyle='#ffd70060'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(xm,oy); ctx.lineTo(xm,ym); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#ffd700'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`H=${Hmax.toFixed(1)}m`, xm+3, ym-2);
+  ctx.fillStyle='#aaddff';
+  ctx.fillText(`R=${R.toFixed(1)}m`, ox+R*scX*0.4, oy-4);
+  ctx.fillText(`θ=${Math.round(parseFloat(document.getElementById('sl-app0').value))}°`, ox+4, oy-14);
+
+  document.getElementById('lbl-app0').textContent = document.getElementById('sl-app0').value;
+}
+
+function drawApp1(){
+  const canvas = document.getElementById('cApp1');
+  const ctx = canvas.getContext('2d');
+  const depth = parseFloat(document.getElementById('sl-app1').value);
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a111f'; ctx.fillRect(0,0,W,H);
+
+  const cx=W/2, scale=W/12;
+  const a=1/(4*depth);
+  // Dish curve
+  ctx.strokeStyle='#aa66ff'; ctx.lineWidth=3;
+  ctx.shadowBlur=12; ctx.shadowColor='#aa66ff';
+  ctx.beginPath(); let first=true;
+  for(let x=-4; x<=4; x+=0.05){
+    const y=a*x*x*scale;
+    const px=cx+x*scale, py=H*0.15+y;
+    if(py>H*0.95){first=true;continue;}
+    if(first){ctx.moveTo(px,py);first=false;} else ctx.lineTo(px,py);
+  }
+  ctx.stroke(); ctx.shadowBlur=0;
+
+  // Focus
+  const fy = H*0.15 + (1/(4*a))*scale;
+  ctx.beginPath(); ctx.arc(cx, fy, 7, 0, Math.PI*2);
+  ctx.fillStyle='#ff4d6d'; ctx.shadowBlur=14; ctx.shadowColor='#ff4d6d';
+  ctx.fill(); ctx.shadowBlur=0;
+  ctx.fillStyle='#ff4d6d'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`Focus`, cx+10, fy);
+
+  // Incoming rays
+  for(let xi=-3.5;xi<=3.5;xi+=0.8){
+    const yi_hit=a*xi*xi*scale+H*0.15;
+    ctx.strokeStyle='rgba(0,212,255,0.5)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(cx+xi*scale, H*0.02); ctx.lineTo(cx+xi*scale, yi_hit); ctx.stroke();
+    ctx.strokeStyle='rgba(0,212,255,0.35)'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cx+xi*scale, yi_hit); ctx.lineTo(cx, fy); ctx.stroke();
+  }
+  document.getElementById('lbl-app1').textContent = depth.toFixed(1);
+}
+
+function drawApp2(){
+  const canvas = document.getElementById('cApp2');
+  const ctx = canvas.getContext('2d');
+  const sag = parseFloat(document.getElementById('sl-app2').value);
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a111f'; ctx.fillRect(0,0,W,H);
+
+  const span=W*0.8, ox=W*0.1, oy=H*0.25;
+  const scY=(H*0.65)/sag;
+
+  // Road/bridge deck
+  ctx.fillStyle='#1a2540';
+  ctx.fillRect(ox-10, H*0.68, span+20, 12);
+
+  // Parabolic cable (y = sag*(2x/span-1)² → inverted → y=H*0.25 + sag*(2x/span-1)²*scY)
+  ctx.strokeStyle='#ff44dd'; ctx.lineWidth=2.5;
+  ctx.shadowBlur=10; ctx.shadowColor='#ff44dd';
+  ctx.beginPath();
+  for(let i=0; i<=1; i+=0.005){
+    const x=ox+i*span;
+    const y=oy+sag*(2*i-1)*(2*i-1)*scY;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke(); ctx.shadowBlur=0;
+
+  // Towers
+  ctx.strokeStyle='#334488'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(ox, H*0.68); ctx.lineTo(ox, oy-10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox+span, H*0.68); ctx.lineTo(ox+span, oy-10); ctx.stroke();
+
+  // Vertical hangers
+  ctx.strokeStyle='rgba(170,102,255,0.4)'; ctx.lineWidth=1;
+  for(let i=0.05; i<1; i+=0.08){
+    const x=ox+i*span;
+    const y=oy+sag*(2*i-1)*(2*i-1)*scY;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, H*0.68); ctx.stroke();
+  }
+
+  ctx.fillStyle='#aaddff'; ctx.font='10px JetBrains Mono';
+  ctx.fillText(`Sag = ${sag.toFixed(1)} units`, ox, oy-14);
+  document.getElementById('lbl-app2').textContent = sag.toFixed(1);
+}
+
+['sl-app0','sl-app1','sl-app2'].forEach((id,i) => {
+  document.getElementById(id).addEventListener('input', [drawApp0,drawApp1,drawApp2][i]);
+});
+
+// ══════════════════════════════════════════════════════
+// PANEL 6 — QUIZ
+// ══════════════════════════════════════════════════════
+const questions = [
+  { q:"What is the eccentricity of a parabola?", opts:["e = 0","e < 1","e = 1","e > 1"], ans:2 },
+  { q:"The equation y² = 4ax represents a parabola opening in which direction?", opts:["Left","Right","Up","Down"], ans:1 },
+  { q:"For the parabola y² = 12x, the focus is at:", opts:["(3, 0)","(0, 3)","(−3, 0)","(0, −3)"], ans:0 },
+  { q:"The length of the latus rectum of y² = 8x is:", opts:["2","4","8","16"], ans:2 },
+  { q:"The directrix of y² = −4x is:", opts:["x = 1","x = −1","y = 1","y = −1"], ans:0 },
+  { q:"The parametric equations of y² = 4ax are:", opts:["(2at, at²)","(at, 2at)","(at², 2at)","(2at², at)"], ans:2 },
+  { q:"For a focal chord with endpoints at parameters t₁ and t₂:", opts:["t₁+t₂=0","t₁·t₂=1","t₁·t₂=−1","t₁−t₂=1"], ans:2 },
+  { q:"The tangent to y² = 4ax at point (at², 2at) is:", opts:["ty = x + at²","t²y = x + at","ty = x − at²","y = tx + at"], ans:0 },
+  { q:"Axis of symmetry for y² = 4ax is:", opts:["x = a","y = a","y = 0","x = 0"], ans:2 },
+  { q:"Which real-life object uses a parabola to focus signals?", opts:["Cube","Sphere","Cylinder","Satellite Dish"], ans:3 },
+];
+
+let qIdx = 0, score = 0, total = 0, answered = false;
+
+function loadQuestion(){
+  answered = false;
+  const q = questions[qIdx];
+  document.getElementById('q-text').textContent = `Q${qIdx+1}. ${q.q}`;
+  document.getElementById('q-fb').style.display = 'none';
+  document.getElementById('btn-next-q').style.display = 'none';
+  const opts = document.getElementById('q-opts');
+  opts.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'quiz-opt';
+    btn.textContent = `${['A','B','C','D'][i]}. ${opt}`;
+    btn.onclick = () => answer(i, btn, q.ans);
+    opts.appendChild(btn);
+  });
+}
+
+function answer(i, btn, correct){
+  if(answered) return;
+  answered = true; total++;
+  const fb = document.getElementById('q-fb');
+  if(i === correct){
+    btn.classList.add('correct');
+    score++;
+    fb.style.background='rgba(57,255,20,0.08)'; fb.style.color='#39ff14';
+    fb.style.border='1px solid #39ff14';
+    fb.textContent = '✓ Correct! Well done!';
+  } else {
+    btn.classList.add('wrong');
+    const opts = document.querySelectorAll('.quiz-opt');
+    opts[correct].classList.add('correct');
+    fb.style.background='rgba(255,77,109,0.08)'; fb.style.color='#ff4d6d';
+    fb.style.border='1px solid #ff4d6d';
+    fb.textContent = `✗ Incorrect. Correct answer: ${['A','B','C','D'][correct]}. ${questions[qIdx].opts[correct]}`;
+  }
+  fb.style.display='block';
+  document.getElementById('q-score').textContent = `Score: ${score} / ${total}`;
+  if(qIdx < questions.length-1) document.getElementById('btn-next-q').style.display='inline-block';
+  else { document.getElementById('btn-next-q').style.display='none';
+    setTimeout(()=>{ document.getElementById('q-fb').textContent += ` 🎉 Quiz complete! Final: ${score}/${total}`; }, 300);
+  }
+}
+
+function nextQuestion(){
+  qIdx = (qIdx+1) % questions.length;
+  loadQuestion();
+}
+
+// ══════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════
+const tabBtns = document.querySelectorAll('.tab-btn');
+const panels  = document.querySelectorAll('.panel');
+
+function switchTab(i){
+  tabBtns.forEach((b,j) => b.classList.toggle('active', j===i));
+  panels.forEach((p,j) => p.classList.toggle('active', j===i));
+  setTimeout(() => {
+    resizeAll();
+    if(i===0) drawPanel0();
+    if(i===1) drawPanel1();
+    if(i===2) drawPanel2();
+    if(i===3) drawPanel3();
+    if(i===4) drawPanel4();
+    if(i===5){ drawApp0(); drawApp1(); drawApp2(); }
+    if(i===6) loadQuestion();
+  }, 50);
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('load', ()=>{
+  resizeAll();
+  drawPanel0();
+  loadQuestion();
+});
+window.addEventListener('resize', ()=>{
+  resizeAll();
+  const active = [...panels].findIndex(p=>p.classList.contains('active'));
+  if(active===0) drawPanel0();
+  if(active===1) drawPanel1();
+  if(active===2) drawPanel2();
+  if(active===3) drawPanel3();
+  if(active===4) drawPanel4();
+  if(active===5){ drawApp0(); drawApp1(); drawApp2(); }
+});
+</script>
+</body>
+</html>
