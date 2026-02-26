@@ -103,7 +103,78 @@ const mathTopics: Record<string, Topic[]> = {
     { id: "sets-functions", name: "Sets and Functions", animationCount: 3, description: "Set operations and types of functions" },
     { id: "limits-derivatives", name: "Limits and Derivatives", animationCount: 4, description: "Concept of limits and differentiation" },
     { id: "conic-sections", name: "Conic Sections", animationCount: 4, description: "Circle, ellipse, parabola and hyperbola" },
-  ],
+    { id: "angle-measurement", name: "Angle and Its Measurement", animationCount: 2, description: "Angles in degrees and radians, arc length and area of sector"},
+    { id: "trigonometry-1", name: "Trigonometry – I", animationCount: 3, description: "Trigonometric functions, identities, and standard angle values"},
+    { id: "trigonometry-2", name: "Trigonometry – II", animationCount: 3, description: "Compound angles, factorization formulae, and inverse trigonometry"},
+    { id: "determinants-matrices", name: "Determinants and Matrices", animationCount: 4, description: "Matrix operations, determinants, and Cramer's rule"},
+    { id: "straight-line", name: "Straight Line", animationCount: 3, description: "Various forms of line equations, angle between lines, and locus" },
+    { id: "circle", name: "Circle", animationCount: 3, description: "Equation of circle, tangents, and conditions of tangency" },
+    { id: "conic-sections", name: "Conic Sections", animationCount: 4, description: "Parabola, ellipse, and hyperbola — equations and properties" },
+    { id: "measures-dispersion", name: "Measures of Dispersion", animationCount: 2, description: "Range, variance, standard deviation, and coefficient of variation"
+    },
+    {
+    id: "probability",
+    name: "Probability",
+    animationCount: 3,
+    description: "Classical probability, theorems, and Bayes' theorem"
+    },
+
+    // Part II
+    {
+    id: "complex-numbers",
+    name: "Complex Numbers",
+    animationCount: 3,
+    description: "Algebra of complex numbers, Argand diagram, and De Moivre's theorem"
+    },
+    {
+    id: "sequences-series",
+    name: "Sequences and Series",
+    animationCount: 3,
+    description: "AP, GP, HP, and special sums of series"
+    },
+    {
+    id: "permutations-combinations",
+    name: "Permutations and Combinations",
+    animationCount: 3,
+    description: "Counting principles, permutations, and combinations"
+    },
+    {
+    id: "induction-binomial",
+    name: "Methods of Induction and Binomial Theorem",
+    animationCount: 3,
+    description: "Mathematical induction and binomial expansion"
+    },
+    {
+    id: "sets-relations",
+    name: "Sets and Relations",
+    animationCount: 2,
+    description: "Set operations, types of relations, and equivalence relations"
+    },
+    {
+    id: "functions",
+    name: "Functions",
+    animationCount: 3,
+    description: "Types of functions, composition, inverse, and algebra of functions"
+    },
+    {
+    id: "limits",
+    name: "Limits",
+    animationCount: 3,
+    description: "Concept of limits, standard limits, and indeterminate forms"
+    },
+    {
+    id: "continuity",
+    name: "Continuity",
+    animationCount: 2,
+    description: "Continuity of a function at a point and over an interval"
+    },
+    {
+    id: "differentiation",
+    name: "Differentiation",
+    animationCount: 4,
+    description: "Derivatives, rules of differentiation, and applications"
+    },
+    ],
   "12": [
     { id: "matrices", name: "Matrices and Determinants", animationCount: 4, description: "Matrix operations and applications" },
     { id: "integration", name: "Integrals", animationCount: 5, description: "Definite and indefinite integrals" },
