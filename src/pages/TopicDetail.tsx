@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 const animationFiles: Record<string, { title: string; src: string }[]> = {
   "conic-sections": [
     { title: "Parabola", src: "/animations/conic-sections/parabola.html" },
+    { title: "Ellipse", src: "/animations/conic-sections/ellipse.html" },
   ],
 };
 

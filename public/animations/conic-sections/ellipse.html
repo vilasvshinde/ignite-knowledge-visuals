@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ellipse Explorer - Standalone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        input[type="range"] { accent-color: #3b82f6; }
+        .grid-line { stroke: #e5e7eb; stroke-width: 1; opacity: 0.5; }
+        .axis { stroke: #71717a; stroke-width: 2; }
+        .ellipse { stroke: #3b82f6; stroke-width: 3; fill: rgba(59, 130, 246, 0.05); transition: d 0.3s ease; }
+        .directrix { stroke: #f43f5e; stroke-width: 2; stroke-dasharray: 4 4; }
+        .focus { fill: #10b981; }
+        .locus-line { stroke-width: 1.5; stroke-dasharray: 2 2; }
+    </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 antialiased">
+    <!-- Header -->
+    <header class="bg-white border-b border-zinc-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                    <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-zinc-900 leading-tight">Ellipse Explorer</h1>
+                    <p class="text-xs text-zinc-500 font-medium uppercase tracking-wider">Maharashtra State Board • Class 11</p>
+                </div>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
+                <i data-lucide="sparkles" class="w-4 h-4 text-blue-600"></i>
+                <span class="text-xs font-semibold text-blue-700">Interactive Geometry</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left Column: Visualization -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="lg:sticky lg:top-24">
+                    <div class="bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm relative overflow-hidden">
+                        <div id="graph-container" class="w-full aspect-square max-w-[600px] mx-auto bg-white rounded-2xl shadow-inner border border-zinc-100 relative">
+                            <svg id="ellipse-svg" width="100%" height="100%" viewBox="0 0 600 600"></svg>
+                            
+                            <!-- Legend Overlay -->
+                            <div class="absolute top-4 right-4 flex flex-col gap-1 text-[10px] font-medium bg-white/90 p-2 rounded-lg border border-zinc-100 shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-0.5 bg-blue-500"></div>
+                                    <span>Ellipse</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-0.5 bg-rose-500 border-dashed border-t"></div>
+                                    <span>Directrices</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <span>Foci (S, S')</span>
+                                </div>
+                            </div>
+
+                            <!-- Distance Display Box -->
+                            <div id="distance-box" class="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-zinc-200 shadow-sm font-mono text-[11px] space-y-1">
+                                <div class="flex justify-between text-emerald-600 gap-4">
+                                    <span>SP:</span>
+                                    <span id="dist-sp" class="font-bold">0.00</span>
+                                </div>
+                                <div class="flex justify-between text-emerald-600 gap-4">
+                                    <span>S'P:</span>
+                                    <span id="dist-s1p" class="font-bold">0.00</span>
+                                </div>
+                                <div class="pt-1 mt-1 border-t border-zinc-100 flex justify-between font-bold">
+                                    <span class="text-zinc-500">SP + S'P:</span>
+                                    <span id="dist-sum" class="text-blue-600">0.00</span>
+                                </div>
+                                <div id="sum-verification" class="text-center text-[10px] text-blue-600 font-bold">
+                                    = 2a (Verified)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 p-6 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+                        <div class="relative z-10">
+                            <h3 class="text-lg font-bold mb-2">Planetary Motion</h3>
+                            <p class="text-blue-50 text-sm leading-relaxed">
+                                Kepler's First Law states that every planet's orbit is an ellipse with the Sun at one of the two foci!
+                            </p>
+                        </div>
+                        <i data-lucide="orbit" class="absolute -right-8 -bottom-8 w-32 h-32 opacity-10"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Controls & Theory -->
+            <div class="lg:col-span-5 space-y-8">
+                <!-- Controls -->
+                <div class="flex flex-col gap-6 p-6 bg-white rounded-2xl border border-zinc-200 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="settings-2" class="w-5 h-5 text-zinc-500"></i>
+                        <h2 class="text-lg font-semibold text-zinc-800">Parameters</h2>
+                    </div>
+
+                    <!-- Parameter 'a' Slider -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm font-medium text-zinc-500 uppercase tracking-wider">Semi-Major Axis (a)</label>
+                            <span id="a-value" class="text-lg font-mono font-bold text-blue-600">5.0</span>
+                        </div>
+                        <input type="range" id="a-slider" min="3" max="8" step="0.1" value="5" class="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Parameter 'b' Slider -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm font-medium text-zinc-500 uppercase tracking-wider">Semi-Minor Axis (b)</label>
+                            <span id="b-value" class="text-lg font-mono font-bold text-blue-600">3.0</span>
+                        </div>
+                        <input type="range" id="b-slider" min="1" max="5" step="0.1" value="3" class="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Point Angle Slider -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm font-medium text-zinc-500 uppercase tracking-wider">Move Point P (θ)</label>
+                            <span id="theta-value" class="text-lg font-mono font-bold text-emerald-600">45°</span>
+                        </div>
+                        <input type="range" id="theta-slider" min="0" max="360" step="1" value="45" class="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                    </div>
+
+                    <!-- Derived Values -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                            <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Eccentricity (e)</label>
+                            <div id="e-display" class="text-lg font-mono font-bold text-zinc-800">0.80</div>
+                        </div>
+                        <div class="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                            <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Foci (±ae, 0)</label>
+                            <div id="foci-display" class="text-lg font-mono font-bold text-zinc-800">±4.0</div>
+                        </div>
+                    </div>
+
+                    <!-- Equation Display -->
+                    <div class="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                        <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Standard Equation</label>
+                        <div id="equation-display" class="text-xl font-serif italic text-zinc-800 text-center py-2">
+                            x²/25 + y²/9 = 1
+                        </div>
+                    </div>
+
+                    <!-- Toggles -->
+                    <div class="space-y-3 pt-4 border-t border-zinc-100">
+                        <label class="text-sm font-medium text-zinc-500 uppercase tracking-wider">Visual Toggles</label>
+                        <div class="flex flex-col gap-2">
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <span class="text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">Show Locus Property (SP + S'P = 2a)</span>
+                                <input type="checkbox" id="toggle-locus" checked class="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500">
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <span class="text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">Show Directrices</span>
+                                <input type="checkbox" id="toggle-directrix" checked class="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theory Section -->
+                <div class="space-y-8 pb-12">
+                    <section class="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i data-lucide="book-open" class="w-5 h-5 text-blue-600"></i>
+                            </div>
+                            <h2 class="text-xl font-bold text-zinc-800">Definition</h2>
+                        </div>
+                        <p class="text-zinc-600 leading-relaxed">
+                            An <span class="font-bold text-blue-600">ellipse</span> is the locus of a point which moves in a plane such that the sum of its distances from two fixed points (called <span class="font-semibold italic">Foci</span>) is always constant and equal to the length of the major axis.
+                        </p>
+                        <div class="mt-4 p-4 bg-zinc-50 rounded-xl font-serif italic text-lg text-center border border-zinc-100">
+                            SP + S'P = 2a
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // State
+        let state = {
+            a: 5.0,
+            b: 3.0,
+            theta: 45, // in degrees
+            showLocus: true,
+            showDirectrix: true
+        };
+
+        // Constants
+        const width = 600;
+        const height = 600;
+        const margin = 40;
+
+        // D3 Scales
+        const xScale = d3.scaleLinear().domain([-10, 10]).range([margin, width - margin]);
+        const yScale = d3.scaleLinear().domain([-10, 10]).range([height - margin, margin]);
+
+        // SVG Elements
+        const svg = d3.select("#ellipse-svg");
+        
+        // Groups
+        const gridGroup = svg.append("g").attr("class", "grid-lines opacity-10");
+        const axisGroup = svg.append("g");
+        const ellipsePath = svg.append("path").attr("class", "ellipse");
+        const focusS = svg.append("circle").attr("class", "focus").attr("r", 5);
+        const focusS1 = svg.append("circle").attr("class", "focus").attr("r", 5);
+        const focusLabelS = svg.append("text").attr("class", "text-[12px] fill-emerald-600 font-bold").attr("text-anchor", "middle");
+        const focusLabelS1 = svg.append("text").attr("class", "text-[12px] fill-emerald-600 font-bold").attr("text-anchor", "middle");
+        const directrixL = svg.append("line").attr("class", "directrix");
+        const directrixR = svg.append("line").attr("class", "directrix");
+        const locusGroup = svg.append("g");
+
+        // Draw Grid
+        d3.range(-10, 11).forEach(i => {
+            gridGroup.append("line").attr("x1", xScale(i)).attr("y1", margin).attr("x2", xScale(i)).attr("y2", height - margin).attr("stroke", "currentColor");
+            gridGroup.append("line").attr("x1", margin).attr("y1", yScale(i)).attr("x2", width - margin).attr("y2", yScale(i)).attr("stroke", "currentColor");
+        });
+
+        // Draw Axes
+        axisGroup.append("line").attr("x1", xScale(-10)).attr("y1", yScale(0)).attr("x2", xScale(10)).attr("y2", yScale(0)).attr("class", "axis");
+        axisGroup.append("line").attr("x1", xScale(0)).attr("y1", yScale(-10)).attr("x2", xScale(0)).attr("y2", yScale(10)).attr("class", "axis");
+
+        function update() {
+            const { a, b, theta, showLocus, showDirectrix } = state;
+            const e = Math.sqrt(1 - (b*b)/(a*a));
+            const ae = a * e;
+
+            // Update UI displays
+            document.getElementById("e-display").innerText = e.toFixed(2);
+            document.getElementById("foci-display").innerText = `±${ae.toFixed(1)}`;
+            document.getElementById("equation-display").innerText = `x²/${(a*a).toFixed(0)} + y²/${(b*b).toFixed(0)} = 1`;
+
+            // Draw Ellipse
+            const points = [];
+            for (let i = 0; i <= 360; i += 2) {
+                const rad = (i * Math.PI) / 180;
+                points.push([xScale(a * Math.cos(rad)), yScale(b * Math.sin(rad))]);
+            }
+            const lineGen = d3.line();
+            ellipsePath.attr("d", lineGen(points));
+
+            // Foci
+            focusS.attr("cx", xScale(ae)).attr("cy", yScale(0));
+            focusS1.attr("cx", xScale(-ae)).attr("cy", yScale(0));
+            focusLabelS.attr("x", xScale(ae)).attr("y", yScale(0) + 20).text(`S(${ae.toFixed(1)}, 0)`);
+            focusLabelS1.attr("x", xScale(-ae)).attr("y", yScale(0) + 20).text(`S'(-${ae.toFixed(1)}, 0)`);
+
+            // Directrices
+            if (showDirectrix) {
+                const dPos = a / e;
+                directrixL.attr("x1", xScale(-dPos)).attr("y1", margin).attr("x2", xScale(-dPos)).attr("y2", height - margin).style("display", "block");
+                directrixR.attr("x1", xScale(dPos)).attr("y1", margin).attr("x2", xScale(dPos)).attr("y2", height - margin).style("display", "block");
+            } else {
+                directrixL.style("display", "none");
+                directrixR.style("display", "none");
+            }
+
+            // Locus Elements
+            locusGroup.selectAll("*").remove();
+            if (showLocus) {
+                document.getElementById("distance-box").classList.remove("hidden");
+                const rad = (theta * Math.PI) / 180;
+                const px = a * Math.cos(rad);
+                const py = b * Math.sin(rad);
+
+                // Point P
+                locusGroup.append("circle").attr("cx", xScale(px)).attr("cy", yScale(py)).attr("r", 4).attr("fill", "#3b82f6");
+                locusGroup.append("text").attr("x", xScale(px) + 10).attr("y", yScale(py) - 10).attr("class", "text-[12px] fill-blue-600 font-medium italic").text("P(x,y)");
+
+                // Lines PS and PS'
+                locusGroup.append("line").attr("x1", xScale(px)).attr("y1", yScale(py)).attr("x2", xScale(ae)).attr("y2", yScale(0)).attr("class", "locus-line").attr("stroke", "#10b981");
+                locusGroup.append("line").attr("x1", xScale(px)).attr("y1", yScale(py)).attr("x2", xScale(-ae)).attr("y2", yScale(0)).attr("class", "locus-line").attr("stroke", "#10b981");
+
+                // Distances
+                const sp = Math.sqrt(Math.pow(px - ae, 2) + Math.pow(py, 2));
+                const s1p = Math.sqrt(Math.pow(px + ae, 2) + Math.pow(py, 2));
+                const sum = sp + s1p;
+
+                document.getElementById("dist-sp").innerText = sp.toFixed(2);
+                document.getElementById("dist-s1p").innerText = s1p.toFixed(2);
+                document.getElementById("dist-sum").innerText = sum.toFixed(2);
+                document.getElementById("sum-verification").innerText = `= 2a (${(2*a).toFixed(2)})`;
+            } else {
+                document.getElementById("distance-box").classList.add("hidden");
+            }
+        }
+
+        // Event Listeners
+        document.getElementById("a-slider").addEventListener("input", (e) => {
+            state.a = parseFloat(e.target.value);
+            if (state.a <= state.b) {
+                state.b = state.a - 0.1;
+                document.getElementById("b-slider").value = state.b;
+                document.getElementById("b-value").innerText = state.b.toFixed(1);
+            }
+            document.getElementById("a-value").innerText = state.a.toFixed(1);
+            update();
+        });
+
+        document.getElementById("b-slider").addEventListener("input", (e) => {
+            state.b = parseFloat(e.target.value);
+            if (state.b >= state.a) {
+                state.a = state.b + 0.1;
+                document.getElementById("a-slider").value = state.a;
+                document.getElementById("a-value").innerText = state.a.toFixed(1);
+            }
+            document.getElementById("b-value").innerText = state.b.toFixed(1);
+            update();
+        });
+
+        document.getElementById("theta-slider").addEventListener("input", (e) => {
+            state.theta = parseInt(e.target.value);
+            document.getElementById("theta-value").innerText = state.theta + "°";
+            update();
+        });
+
+        document.getElementById("toggle-locus").addEventListener("change", (e) => {
+            state.showLocus = e.target.checked;
+            update();
+        });
+
+        document.getElementById("toggle-directrix").addEventListener("change", (e) => {
+            state.showDirectrix = e.target.checked;
+            update();
+        });
+
+        // Initial Draw
+        update();
+    </script>
+</body>
+</html>
